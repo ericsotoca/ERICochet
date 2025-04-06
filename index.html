@@ -5,292 +5,436 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>E'Ricochet</title>
     <style>
-        /* --- Styles CSS (inchangés par rapport à la dernière version fonctionnelle) --- */
+        /* --- Styles CSS --- */
         body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; margin: 0; padding: 20px; }
         h1 { font-size: 24px; margin-bottom: 10px; }
         #game-container { display: grid; grid-template-columns: repeat(16, 40px); grid-template-rows: repeat(16, 40px); gap: 1px; background-color: #aaa; border: 4px solid #604028; position: relative; margin-bottom: 10px; }
         .cell { width: 40px; height: 40px; background-color: #e8e8e8; position: relative; box-sizing: border-box; background-image: linear-gradient(45deg, #fdfdfd 25%, transparent 25%), linear-gradient(-45deg, #fdfdfd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #fdfdfd 75%), linear-gradient(-45deg, transparent 75%, #fdfdfd 75%); background-size: 6px 6px; background-position: 0 0, 0 3px, 3px -3px, -3px 0px; }
         .center-square { background-color: #d3d3d3 !important; background-image: none !important; }
-        .wall-top::before, .wall-right::before, .wall-bottom::before, .wall-left::before { content: ''; position: absolute; background-color: #604028; z-index: 5; }
-        .wall-top::before { top: -2px; left: -2px; right: -2px; height: 4px; }
-        .wall-right::before { top: -2px; bottom: -2px; right: -2px; width: 4px; }
-        .wall-bottom::before { bottom: -2px; left: -2px; right: -2px; height: 4px; }
-        .wall-left::before { top: -2px; bottom: -2px; left: -2px; width: 4px; }
-        .robot { width: 30px; height: 30px; border-radius: 50%; position: absolute; top: 5px; left: 5px; z-index: 10; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); border: 1px solid rgba(0,0,0,0.3); overflow: hidden; }
-        .robot::after { content: ''; position: absolute; width: 12px; height: 12px; background-color: white; top: 50%; left: 50%; transform: translate(-50%, -50%); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
-        .blue { background-color: #4169E1; } .red { background-color: #DC143C; } .green { background-color: #32CD32; } .yellow { background-color: #FFD700; }
-        .target { width: 30px; height: 30px; position: absolute; top: 5px; left: 5px; z-index: 1; background-size: contain; background-repeat: no-repeat; background-position: center; }
-        .target.blue { background-color: #4169E1; } .target.red { background-color: #DC143C; } .target.green { background-color: #32CD32; } .target.yellow { background-color: #FFD700; }
-        .target-circle { border-radius: 50%; } .target-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); } .target-square { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); } .target-hexagon { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); } .target-star { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
-        .target.active { box-shadow: 0 0 0 3px black; }
-        #info { margin-top: 0; font-size: 16px; font-weight: bold; margin-bottom: 5px; min-height: 20px; text-align: center; }
-        #moves { margin-top: 5px; font-size: 16px; text-align: center;}
-        #controls { text-align: center; }
-        #controls button { margin: 5px; padding: 10px 15px; font-size: 14px; color: white; border: none; cursor: pointer; border-radius: 4px; }
-        #start-game-button { background-color: #28a745; } #start-game-button:hover { background-color: #218838; }
-        #reset-walls-button { background-color: #ffc107; color: #333; } #reset-walls-button:hover { background-color: #e0a800; }
-        /* Style pour le bouton Aide */
-        #help-button { background-color: #17a2b8; } /* Cyan */
-        #help-button:hover { background-color: #138496; }
-        #restart-button { background-color: #007bff; } #restart-button:hover { background-color: #0056b3; }
-        .editing-mode .cell { cursor: pointer; }
-        .editing-mode .cell:hover { background-color: #d0d0f0; opacity: 0.8; }
-    </style>
+/* --- Styles pour les murs - UTILISANT ::before ET ::after --- */
+    /* Styles communs aux deux pseudo-éléments */
+    .wall-top::before, .wall-bottom::before,
+    .wall-left::after, .wall-right::after {
+        content: '';
+        position: absolute;
+        background-color: #604028; /* Couleur marron */
+        z-index: 5; /* Pour être au-dessus des cellules */
+    }
+
+    /* Murs HORIZONTAUX utilisent ::before */
+    .wall-top::before {
+        top: -2px;      /* Positionné juste au-dessus */
+        left: 0;        /* Commence au bord gauche de la cellule */
+        right: 0;       /* Finit au bord droit de la cellule */
+        height: 4px;    /* Épaisseur du mur */
+    }
+    .wall-bottom::before {
+        bottom: -2px;   /* Positionné juste en dessous */
+        left: 0;        /* Commence au bord gauche de la cellule */
+        right: 0;       /* Finit au bord droit de la cellule */
+        height: 4px;    /* Épaisseur du mur */
+    }
+
+    /* Murs VERTICAUX utilisent ::after */
+    .wall-left::after {
+        top: 0;         /* Commence au bord haut de la cellule */
+        bottom: 0;      /* Finit au bord bas de la cellule */
+        left: -2px;      /* Positionné juste à gauche */
+        width: 4px;     /* Épaisseur du mur */
+    }
+    .wall-right::after {
+        top: 0;         /* Commence au bord haut de la cellule */
+        bottom: 0;      /* Finit au bord bas de la cellule */
+        right: -2px;     /* Positionné juste à droite */
+        width: 4px;     /* Épaisseur du mur */
+    }
+    /* --- Fin des styles pour les murs --- */
+
+    .robot { width: 30px; height: 30px; border-radius: 50%; position: absolute; top: 5px; left: 5px; z-index: 10; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); border: 1px solid rgba(0,0,0,0.3); overflow: hidden; }
+    .robot::after { content: ''; position: absolute; width: 12px; height: 12px; background-color: white; top: 50%; left: 50%; transform: translate(-50%, -50%); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+    .blue { background-color: #4169E1; } .red { background-color: #DC143C; } .green { background-color: #32CD32; } .yellow { background-color: #FFD700; }
+    .target { width: 30px; height: 30px; position: absolute; top: 5px; left: 5px; z-index: 1; background-size: contain; background-repeat: no-repeat; background-position: center; }
+    .target.blue { background-color: #4169E1; } .target.red { background-color: #DC143C; } .target.green { background-color: #32CD32; } .target.yellow { background-color: #FFD700; }
+    .target-circle { border-radius: 50%; } .target-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); } .target-square { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); } .target-hexagon { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); } .target-star { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+    .target.active { box-shadow: 0 0 0 3px black; }
+    #info { margin-top: 0; font-size: 16px; font-weight: bold; margin-bottom: 5px; min-height: 20px; text-align: center; }
+    #moves { margin-top: 5px; font-size: 16px; text-align: center;}
+    #controls { text-align: center; }
+    #controls button { margin: 5px; padding: 10px 15px; font-size: 14px; color: white; border: none; cursor: pointer; border-radius: 4px; }
+    #start-game-button { background-color: #28a745; } #start-game-button:hover { background-color: #218838; }
+    #reset-walls-button { background-color: #ffc107; color: #333; } #reset-walls-button:hover { background-color: #e0a800; }
+    #help-button { background-color: #17a2b8; } #help-button:hover { background-color: #138496; }
+    #restart-button { background-color: #007bff; } #restart-button:hover { background-color: #0056b3; }
+    .editing-mode .cell { cursor: pointer; }
+    .editing-mode .cell:hover { background-color: #d0d0f0; opacity: 0.8; }
+</style>
+Use code with caution.
 </head>
 <body>
-   
-    <h1>E'Ricochet</h1>
+<h1>E'Ricochet</h1>
+<div id="game-container"></div>
+<div id="info">Cliquez près des bords pour ajouter/enlever des murs. Appuyez sur "Démarrer la Partie".</div>
+<div id="moves">Coups : 0</div>
+<div id="controls">
+    <button id="start-game-button" onclick="startGame()">Démarrer la Partie</button>
+    <button id="reset-walls-button" onclick="resetWallsToDefault()">Réinitialiser Murs</button>
+    <button id="help-button">Aide</button>
+    <button id="restart-button" onclick="restartGame()" style="display: none;">Nouveau Tour</button>
+</div>
+<script>
+    // --- Constantes et Variables Globales (inchangées) ---
+    const GRID_SIZE = 16;
+    const CELL_SIZE = 40;
+    const WALL_CLICK_MARGIN = 10;
+    const container = document.getElementById('game-container');
+    const info = document.getElementById('info');
+    const movesDisplay = document.getElementById('moves');
+    const startGameButton = document.getElementById('start-game-button');
+    const resetWallsButton = document.getElementById('reset-walls-button');
+    const restartButton = document.getElementById('restart-button');
+    const helpButton = document.getElementById('help-button');
+    let board = [];
+    let robots = [];
+    let targets = [
+        { shape: 'circle', color: 'blue', x: 5, y: 1 }, { shape: 'square', color: 'yellow', x: 7, y: 2 },
+        { shape: 'star', color: 'red', x: 3, y: 5 }, { shape: 'hexagon', color: 'green', x: 5, y: 6 },
+        { shape: 'circle', color: 'yellow', x: 2, y: 8 }, { shape: 'triangle', color: 'blue', x: 3, y: 11 },
+        { shape: 'star', color: 'green', x: 5, y: 12 }, { shape: 'triangle', color: 'blue', x: 6, y: 14 },
+        { shape: 'circle', color: 'red', x: 11, y: 2 }, { shape: 'triangle', color: 'green', x: 14, y: 3 },
+        { shape: 'star', color: 'yellow', x: 12, y: 6 }, { shape: 'star', color: 'blue', x: 11, y: 10 },
+        { shape: 'hexagon', color: 'yellow', x: 10, y: 11 }, { shape: 'triangle', color: 'red', x: 14, y: 12 },
+        { shape: 'triangle', color: 'yellow', x: 5, y: 3 } // Cible centrale
+    ];
+    let currentTarget = null;
+    let activeRobot = null;
+    let moves = 0;
+    let moveHistory = [];
+    let isEditing = true;
 
-    <div id="game-container"></div>
+    // --- Fonctions d'aide à la traduction (inchangées) ---
+    function traduireCouleur(couleurAnglais) {
+        switch (couleurAnglais) {
+            case 'red': return 'rouge'; case 'green': return 'vert';
+            case 'blue': return 'bleu'; case 'yellow': return 'jaune';
+            default: return couleurAnglais;
+        }
+    }
+    function traduireForme(formeAnglais) {
+        switch (formeAnglais) {
+            case 'circle': return 'cercle'; case 'triangle': return 'triangle';
+            case 'square': return 'carré'; case 'hexagon': return 'hexagone';
+            case 'star': return 'étoile'; default: return formeAnglais;
+        }
+    }
 
-    
-    <div id="info">Cliquez près des bords pour ajouter/enlever des murs. Appuyez sur "Démarrer la Partie".</div>
-    
-    <div id="moves">Coups : 0</div>
+    // --- Fonctions de Gestion des Murs ---
+    function createEmptyBoard() { // Accolade ouvrante de la fonction
+        board = [];
+        for (let y = 0; y < GRID_SIZE; y++) { // Accolade ouvrante de la boucle y
+            let row = [];
+            for (let x = 0; x < GRID_SIZE; x++) { // Accolade ouvrante de la boucle x
+                let walls = { top: false, right: false, bottom: false, left: false };
+                // Murs extérieurs fixes
+                if (x === 0) walls.left = true;
+                if (x === GRID_SIZE - 1) walls.right = true;
+                if (y === 0) walls.top = true;
+                if (y === GRID_SIZE - 1) walls.bottom = true;
+                row.push(walls);
+            } // Accolade fermante de la boucle x
+            board.push(row);
+        } // Accolade fermante de la boucle y (corrigée)
 
-    <div id="controls">
-        
-        <button id="start-game-button" onclick="startGame()">Démarrer la Partie</button>
-        <button id="reset-walls-button" onclick="resetWallsToDefault()">Réinitialiser Murs</button>
-        <button id="help-button">Aide</button> 
-        <button id="restart-button" onclick="restartGame()" style="display: none;">Nouveau Tour</button>
-    </div>
+        // Murs fixes du carré central - VERSION CORRIGÉE
+        // (Ces appels sont corrects et doivent être HORS de la boucle)
+        addWall(7, 6, 'bottom'); // Mur haut de (7,7)
+        addWall(8, 6, 'bottom'); // Mur haut de (8,7)
+        addWall(6, 7, 'right');  // Mur gauche de (7,7)
+        addWall(6, 8, 'right');  // Mur gauche de (7,8)
+        addWall(8, 7, 'right');  // Mur droit de (8,7) / Mur gauche de (9,7)
+        addWall(8, 8, 'right');  // Mur droit de (8,8) / Mur gauche de (9,8)
+        addWall(7, 8, 'bottom'); // Mur bas de (7,8) / Mur haut de (7,9)
+        addWall(8, 8, 'bottom'); // Mur bas de (8,8) / Mur haut de (8,9)
+    } // Accolade fermante de la fonction
 
-    <script>
-        // --- Constantes et Variables Globales ---
-        const GRID_SIZE = 16;
-        const CELL_SIZE = 40;
-        const WALL_CLICK_MARGIN = 10;
-        const container = document.getElementById('game-container');
-        const info = document.getElementById('info');
-        const movesDisplay = document.getElementById('moves');
-        const startGameButton = document.getElementById('start-game-button');
-        const resetWallsButton = document.getElementById('reset-walls-button');
-        const restartButton = document.getElementById('restart-button');
-        const helpButton = document.getElementById('help-button'); // Référence au bouton Aide
-        let board = [];
-        let robots = [];
-        let targets = [ /* Liste des cibles */
-            { shape: 'circle', color: 'blue', x: 5, y: 1 }, { shape: 'square', color: 'yellow', x: 7, y: 2 },
-            { shape: 'star', color: 'red', x: 3, y: 5 }, { shape: 'hexagon', color: 'green', x: 5, y: 6 },
-            { shape: 'circle', color: 'yellow', x: 2, y: 8 }, { shape: 'triangle', color: 'blue', x: 3, y: 11 },
-            { shape: 'star', color: 'green', x: 5, y: 12 }, { shape: 'triangle', color: 'blue', x: 6, y: 14 },
-            { shape: 'circle', color: 'red', x: 11, y: 2 }, { shape: 'triangle', color: 'green', x: 14, y: 3 },
-            { shape: 'star', color: 'yellow', x: 12, y: 6 }, { shape: 'star', color: 'blue', x: 11, y: 10 },
-            { shape: 'hexagon', color: 'yellow', x: 10, y: 11 }, { shape: 'triangle', color: 'red', x: 14, y: 12 },
-            { shape: 'triangle', color: 'yellow', x: 7, y: 7 }
-        ];
-        let currentTarget = null;
-        let activeRobot = null;
-        let moves = 0;
-        let moveHistory = [];
-        let isEditing = true;
+    // MODIFIÉ : Ajout des 8 murs essentiels près des bords ET LOGS
+    function addDefaultInternalWalls() {
+        // --- Murs existants liés aux cibles (AJOUTER EN PREMIER POUR TEST) ---
+        console.log("--- Début ajout murs cibles ---");
+        addWall(11, 2, 'bottom'); addWall(11, 2, 'right');
+        addWall(7, 2, 'bottom'); addWall(7, 2, 'right');
+        addWall(5, 1, 'bottom'); addWall(5, 1, 'left');
+        addWall(5, 3, 'top'); addWall(5, 3, 'right');
+        addWall(3, 5, 'bottom'); addWall(3, 5, 'right');
+        addWall(5, 6, 'top'); addWall(5, 6, 'right');
+        addWall(2, 8, 'top'); addWall(2, 8, 'left');
+        addWall(3, 11, 'bottom'); addWall(3, 11, 'right');
+        addWall(5, 12, 'top'); addWall(5, 12, 'left');
+        addWall(6, 14, 'top'); addWall(6, 14, 'right');
+        addWall(14, 3, 'bottom'); addWall(14, 3, 'left');
+        addWall(12, 6, 'top'); addWall(12, 6, 'left');
+        addWall(11, 10, 'bottom'); addWall(11, 10, 'right');
+        addWall(10, 11, 'top'); addWall(10, 11, 'right');
+        addWall(14, 12, 'top'); addWall(14, 12, 'left');
+        console.log("--- Fin ajout murs cibles ---");
+        // --- Fin des murs de cibles ---
 
-        // --- Fonctions d'aide à la traduction ---
-        function traduireCouleur(couleurAnglais) {
-            switch (couleurAnglais) {
-                case 'red': return 'rouge'; case 'green': return 'vert';
-                case 'blue': return 'bleu'; case 'yellow': return 'jaune';
-                default: return couleurAnglais;
+
+        // --- Murs essentiels près des bords (AJOUTER EN DERNIER POUR TEST) ---
+        console.log("--- Début ajout murs essentiels ---");
+        // Vérifier l'état AVANT pour une case clé (ex: affectée par addWall(1, 0, 'bottom'))
+        console.log("AVANT - board[0][1].bottom:", board[0][1]?.bottom); // ?. évite erreur si undefined
+        console.log("AVANT - board[1][0].right:", board[1][0]?.right);   // Pour addWall(0, 1, 'right')
+
+        // Coin Supérieur Gauche (près de 0,0)
+        addWall(1, 0, 'bottom'); // Mur vertical entre (1,0) et (1,1)
+        addWall(0, 1, 'right');  // Mur horizontal entre (0,1) et (1,1)
+
+        // Coin Supérieur Droit (près de 15,0)
+        addWall(14, 0, 'bottom'); // Mur vertical entre (14,0) et (14,1)
+        addWall(14, 1, 'right');  // Mur horizontal entre (14,1) et (15,1)
+
+        // Coin Inférieur Gauche (près de 0,15)
+        addWall(1, 14, 'bottom'); // Mur vertical entre (1,14) et (1,15)
+        addWall(0, 14, 'right');  // Mur horizontal entre (0,14) et (1,14)
+
+        // Coin Inférieur Droit (près de 15,15)
+        addWall(14, 14, 'bottom'); // Mur vertical entre (14,14) et (14,15)
+        addWall(14, 14, 'right');  // Mur horizontal entre (14,14) et (15,14)
+
+        // Vérifier l'état APRES pour les mêmes cases clés
+        console.log("APRES - board[0][1].bottom:", board[0][1]?.bottom);
+        console.log("APRES - board[1][0].right:", board[1][0]?.right);
+        console.log("--- Fin ajout murs essentiels ---");
+        // --- Fin des murs essentiels ---
+    }
+
+    // MODIFIÉ AVEC LOGS
+    function addWall(x, y, side) {
+        // Log pour voir si la fonction est appelée avec les bonnes coordonnées
+        console.log(`-> Appel addWall(${x}, ${y}, '${side}')`);
+
+        if (isOutOfBounds(x, y)) return;
+        if (isBoundaryWall(x, y, side)) return; // Ne pas ajouter PARALLÈLEMENT aux bords
+
+        let changed = false; // Pour suivre si une modification a eu lieu
+        if (side === 'top' && y > 0) {
+            if (!board[y][x].top) { board[y][x].top = true; changed = true; }
+            if (y > 0 && board[y-1] && !board[y - 1][x].bottom) { board[y - 1][x].bottom = true; changed = true; } // Vérification index
+        } else if (side === 'bottom' && y < GRID_SIZE - 1) {
+            if (!board[y][x].bottom) { board[y][x].bottom = true; changed = true; }
+            if (y < GRID_SIZE - 1 && board[y+1] && !board[y + 1][x].top) { board[y + 1][x].top = true; changed = true; } // Vérification index
+        } else if (side === 'left' && x > 0) {
+            if (!board[y][x].left) { board[y][x].left = true; changed = true; }
+            if (x > 0 && board[y][x-1] && !board[y][x - 1].right) { board[y][x - 1].right = true; changed = true; } // Vérification index
+        } else if (side === 'right' && x < GRID_SIZE - 1) {
+            if (!board[y][x].right) { board[y][x].right = true; changed = true; }
+            if (x < GRID_SIZE - 1 && board[y][x+1] && !board[y][x + 1].left) { board[y][x + 1].left = true; changed = true; } // Vérification index
+        }
+
+        // Log pour voir si la modification a été tentée/réussie
+        if (changed) {
+            console.log(`   * MODIFICATION board pour (${x}, ${y}, '${side}')`);
+        } else {
+             console.log(`   - PAS de modification nécessaire pour (${x}, ${y}, '${side}')`);
+        }
+    }
+
+    function removeWall(x, y, side) { if (isOutOfBounds(x, y)) return; if (isBoundaryWall(x, y, side) || isCenterWall(x,y,side)) return; /* On ne peut toujours pas retirer les murs extérieurs ou centraux fixes */ if (side === 'top' && y > 0) { board[y][x].top = false; board[y - 1][x].bottom = false; } else if (side === 'bottom' && y < GRID_SIZE - 1) { board[y][x].bottom = false; board[y + 1][x].top = false; } else if (side === 'left' && x > 0) { board[y][x].left = false; board[y][x - 1].right = false; } else if (side === 'right' && x < GRID_SIZE - 1) { board[y][x].right = false; board[y][x + 1].left = false; } }
+    function toggleWall(x, y, side) { if (isOutOfBounds(x, y)) return; if (isBoundaryWall(x, y, side) || isCenterWall(x,y,side) || isEssentialEdgeWall(x,y,side)) { /* Ajout: on ne peut pas non plus modifier les murs essentiels */ return; } let wallExists = false; if (side === 'top') wallExists = board[y][x].top; else if (side === 'bottom') wallExists = board[y][x].bottom; else if (side === 'left') wallExists = board[y][x].left; else if (side === 'right') wallExists = board[y][x].right; if (wallExists) { removeWall(x, y, side); } else { addWall(x, y, side); } renderBoard(); }
+    function isOutOfBounds(x, y) { return x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE; }
+    function isBoundaryWall(x, y, side) { return (side === 'top' && y === 0) || (side === 'bottom' && y === GRID_SIZE - 1) || (side === 'left' && x === 0) || (side === 'right' && x === GRID_SIZE - 1); }
+
+    // MODIFIÉ: Correction/Clarification isCenterWall basée sur le code createEmptyBoard original
+    function isCenterWall(x,y,side){
+         // Murs bas des cases (7,8) et (8,8)
+         if(side === 'bottom' && y === 8 && (x === 7 || x === 8)) return true;
+         // Murs hauts des cases (7,7) et (8,7)
+         if(side === 'top'    && y === 7 && (x === 7 || x === 8)) return true; // Equivalent à bottom pour y=6
+         // Murs droits des cases (6,7) et (6,8)
+         if(side === 'right'  && x === 6 && (y === 7 || y === 8)) return true;
+         // Murs gauches des cases (9,7) et (9,8)
+         if(side === 'left'   && x === 9 && (y === 7 || y === 8)) return true; // Equivalent à right pour x=8
+         return false;
+    }
+
+    // NOUVEAU: Fonction pour identifier les 8 murs essentiels près des bords
+    function isEssentialEdgeWall(x, y, side) {
+        // Coin Supérieur Gauche
+        if ((side === 'bottom' && x === 1 && y === 0) || (side === 'top' && x === 1 && y === 1)) return true; // Vertical entre (1,0)-(1,1)
+        if ((side === 'right' && x === 0 && y === 1) || (side === 'left' && x === 1 && y === 1)) return true; // Horizontal entre (0,1)-(1,1)
+        // Coin Supérieur Droit
+        if ((side === 'bottom' && x === 14 && y === 0) || (side === 'top' && x === 14 && y === 1)) return true; // Vertical entre (14,0)-(14,1)
+        if ((side === 'right' && x === 14 && y === 1) || (side === 'left' && x === 15 && y === 1)) return true; // Horizontal entre (14,1)-(15,1)
+        // Coin Inférieur Gauche
+        if ((side === 'bottom' && x === 1 && y === 14) || (side === 'top' && x === 1 && y === 15)) return true; // Vertical entre (1,14)-(1,15)
+        if ((side === 'right' && x === 0 && y === 14) || (side === 'left' && x === 1 && y === 14)) return true; // Horizontal entre (0,14)-(1,14)
+        // Coin Inférieur Droit
+        if ((side === 'bottom' && x === 14 && y === 14) || (side === 'top' && x === 14 && y === 15)) return true; // Vertical entre (14,14)-(14,15)
+        if ((side === 'right' && x === 14 && y === 14) || (side === 'left' && x === 15 && y === 14)) return true; // Horizontal entre (14,14)-(15,14)
+        return false;
+    }
+
+
+    // --- Rendering (MODIFIÉ AVEC LOGS) ---
+    function renderBoard() {
+        console.log("--- Début renderBoard ---");
+        // Vérifier l'état juste avant le rendu pour les cases clés
+        console.log("RENDER - board[0][1].bottom:", board[0]?.[1]?.bottom); // ?. pour éviter erreurs si undefined
+        console.log("RENDER - board[1][0].right:", board[1]?.[0]?.right);
+
+        container.innerHTML = '';
+        container.className = isEditing ? 'editing-mode' : '';
+        for (let y = 0; y < GRID_SIZE; y++) {
+             for (let x = 0; x < GRID_SIZE; x++) {
+                let cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.x = x;
+                cell.dataset.y = y;
+                // Log pour vérifier si les murs sont lus correctement pour l'affichage
+                // if (x === 1 && y === 0 && board[y][x].bottom) console.log(`RENDER Check: Mur bottom pour (1,0) est ${board[y][x].bottom}`);
+                // if (x === 0 && y === 1 && board[y][x].right) console.log(`RENDER Check: Mur right pour (0,1) est ${board[y][x].right}`);
+
+                if (board[y]?.[x]?.top) cell.classList.add('wall-top'); // Ajout ?. pour sécurité
+                if (board[y]?.[x]?.right) cell.classList.add('wall-right');
+                if (board[y]?.[x]?.bottom) cell.classList.add('wall-bottom');
+                if (board[y]?.[x]?.left) cell.classList.add('wall-left');
+                if ((x >= 7 && x <= 8) && (y >= 7 && y <= 8)) {
+                    cell.classList.add('center-square');
+                }
+                cell.removeEventListener('click', handleCellClick);
+                if (isEditing) {
+                    cell.addEventListener('click', handleCellClick);
+                }
+                container.appendChild(cell);
             }
         }
-        function traduireForme(formeAnglais) {
-            switch (formeAnglais) {
-                case 'circle': return 'cercle'; case 'triangle': return 'triangle';
-                case 'square': return 'carré'; case 'hexagon': return 'hexagone';
-                case 'star': return 'étoile'; default: return formeAnglais;
-            }
+        if (!isEditing) {
+            targets.forEach(target => {
+                if (!isOutOfBounds(target.x, target.y)) {
+                    let cellIndex = target.y * GRID_SIZE + target.x;
+                    if (container.children[cellIndex]) { // Vérifier si l'enfant existe
+                       let cell = container.children[cellIndex];
+                        let targetDiv = document.createElement('div');
+                        const shapeClass = target.shape ? `target-${target.shape}` : 'target-square';
+                        targetDiv.className = `target ${shapeClass} ${target.color}`;
+                        if (target === currentTarget) targetDiv.classList.add('active');
+                        cell.appendChild(targetDiv);
+                    }
+                }
+            });
+            robots.forEach(robot => {
+                if (!isOutOfBounds(robot.x, robot.y)) {
+                    let cellIndex = robot.y * GRID_SIZE + robot.x;
+                     if (container.children[cellIndex]) { // Vérifier si l'enfant existe
+                        let cell = container.children[cellIndex];
+                        let robotDiv = document.createElement('div');
+                        robotDiv.className = `robot ${robot.color}`;
+                        if (robot === activeRobot) {
+                            robotDiv.style.outline = '3px solid white';
+                            robotDiv.style.outlineOffset = '-3px';
+                        }
+                        cell.appendChild(robotDiv);
+                    }
+                }
+            });
         }
-
-        // --- Fonctions de Gestion des Murs ---
-        function createEmptyBoard() { board = []; for (let y = 0; y < GRID_SIZE; y++) { let row = []; for (let x = 0; x < GRID_SIZE; x++) { let walls = { top: false, right: false, bottom: false, left: false }; if (x === 0) walls.left = true; if (x === GRID_SIZE - 1) walls.right = true; if (y === 0) walls.top = true; if (y === GRID_SIZE - 1) walls.bottom = true; row.push(walls); } board.push(row); } addWall(7, 6, 'bottom'); addWall(8, 6, 'bottom'); addWall(6, 7, 'right');  addWall(8, 7, 'right'); addWall(6, 8, 'right');  addWall(8, 8, 'right'); addWall(7, 8, 'bottom'); addWall(8, 8, 'bottom'); }
-
-        // CORRECTION: Fonction pour ajouter les murs correspondant
-        // aux cibles définies dans le tableau 'targets' du code.
-        function addDefaultInternalWalls() {
-
-            // Cible (11, 2) - Cercle Rouge: murs en bas et à gauche
-            addWall(11, 2, 'bottom');
-            addWall(11, 2, 'right');
-
-            // Cible (7, 2) - Carré Jaune: murs en bas et à gauche
-            addWall(7, 2, 'bottom');
-            addWall(7, 2, 'right');
-
-            // Cible (5, 1) - Cercle Bleu: murs en bas et à gauche
-            addWall(5, 1, 'bottom');
-            addWall(5, 1, 'left');
-
-            // Cible (5, 3) - Carré Jaune: murs en haut et à droite
-            addWall(5, 3, 'top');
-            addWall(5, 3, 'right');
-
-            // Cible (3, 5) - Étoile Rouge: murs en bas et à droite
-            addWall(3, 5, 'bottom');
-            addWall(3, 5, 'right');
-
-            // Cible (5, 6) - Hexagone Vert: murs en haut et à droite
-            addWall(5, 6, 'top');
-            addWall(5, 6, 'right');
-
-            // Cible (2, 8) - Cercle Jaune: murs en haut et à gauche
-            addWall(2, 8, 'top');
-            addWall(2, 8, 'left');
-
-            // Cible (3, 11) - Triangle Bleu: murs en bas et à droite
-            addWall(3, 11, 'bottom');
-            addWall(3, 11, 'right');
-
-            // Cible (5, 12) - Étoile Verte: murs en haut et à gauche
-            addWall(5, 12, 'top');
-            addWall(5, 12, 'left');
-
-            // Cible (6, 14) - Triangle Bleu: murs en haut et à droite
-            addWall(6, 14, 'top');
-            addWall(6, 14, 'right');
+         console.log("--- Fin renderBoard ---");
+    }
 
 
+    // --- Event Handlers (inchangés) ---
+    function handleCellClick(event) { if (!isEditing) return; const cell = event.currentTarget; const x = parseInt(cell.dataset.x); const y = parseInt(cell.dataset.y); const clickX = event.offsetX; const clickY = event.offsetY; if (clickY < WALL_CLICK_MARGIN) toggleWall(x, y, 'top'); else if (clickY > CELL_SIZE - WALL_CLICK_MARGIN) toggleWall(x, y, 'bottom'); else if (clickX < WALL_CLICK_MARGIN) toggleWall(x, y, 'left'); else if (clickX > CELL_SIZE - WALL_CLICK_MARGIN) toggleWall(x, y, 'right'); }
+    function handleKeyPress(e) { if (isEditing) return; let key = e.key.toUpperCase(); let robotToSelect = null; if (key === 'R') robotToSelect = robots.find(r => r.color === 'red'); else if (key === 'G') robotToSelect = robots.find(r => r.color === 'green'); else if (key === 'B') robotToSelect = robots.find(r => r.color === 'blue'); else if (key === 'Y') robotToSelect = robots.find(r => r.color === 'yellow'); else if (key === 'U') { undoMove(); return; } else if (key === 'ESCAPE') { window.close(); return; } if (robotToSelect) { activeRobot = robotToSelect; updateInfo(); renderBoard(); } else if (activeRobot) { if (e.key === 'ArrowUp') moveRobot(activeRobot, 0, -1); else if (e.key === 'ArrowDown') moveRobot(activeRobot, 0, 1); else if (e.key === 'ArrowLeft') moveRobot(activeRobot, -1, 0); else if (e.key === 'ArrowRight') moveRobot(activeRobot, 1, 0); } }
 
-            // Cible (14, 3) - Triangle Vert: murs en bas et à gauche
-            addWall(14, 3, 'bottom');
-            addWall(14, 3, 'left');
-
-            // Cible (12, 6) - Étoile Jaune: murs en haut et à gauche
-            addWall(12, 6, 'top');
-            addWall(12, 6, 'left');
-
-            // Cible (11, 10) - Étoile Bleue: murs en bas et à droite
-            addWall(11, 10, 'bottom');
-            addWall(11, 10, 'right');
-
-            // Cible (10, 11) - Hexagone Jaune: murs en haut et à droite
-            addWall(10, 11, 'top');
-            addWall(10, 11, 'right');
-
-            // Cible (14, 12) - Triangle Rouge: murs en haut et à gauche
-            addWall(14, 12, 'top');
-            addWall(14, 12, 'left');
-
-            // Cible (7, 7) - Triangle Jaune: C'est une cible dans le carré central.
-            // Ses murs "de coin" (bas et gauche par rapport à la case 7,7) font partie
-            // des murs fixes du carré central et sont gérés par createEmptyBoard()
-            // ou empêchés par isCenterWall(). Pas besoin d'appels addWall ici.
-
-            // Cible (6, 3) [Non listée dans le code mais visible sur la 1ere photo]: murs bas et gauche
-            // addWall(6, 3, 'bottom'); addWall(6, 3, 'left');
-            // Cible (12, 4) [Non listée dans le code mais visible sur la 1ere photo]: murs haut et gauche
-            // addWall(12, 4, 'top'); addWall(12, 4, 'left');
-            // ... etc pour les autres cibles de la 1ere photo si besoin
-            // MAIS cette fonction ne doit contenir QUE les murs pour les cibles DANS le code actuel.
-        }
-
-        function addWall(x, y, side) { if (isOutOfBounds(x, y)) return; if (isBoundaryWall(x, y, side) || isCenterWall(x,y,side)) return; if (side === 'top' && y > 0) { board[y][x].top = true; board[y - 1][x].bottom = true; } else if (side === 'bottom' && y < GRID_SIZE - 1) { board[y][x].bottom = true; board[y + 1][x].top = true; } else if (side === 'left' && x > 0) { board[y][x].left = true; board[y][x - 1].right = true; } else if (side === 'right' && x < GRID_SIZE - 1) { board[y][x].right = true; board[y][x + 1].left = true; } }
-        function removeWall(x, y, side) { if (isOutOfBounds(x, y)) return; if (isBoundaryWall(x, y, side) || isCenterWall(x,y,side)) return; if (side === 'top' && y > 0) { board[y][x].top = false; board[y - 1][x].bottom = false; } else if (side === 'bottom' && y < GRID_SIZE - 1) { board[y][x].bottom = false; board[y + 1][x].top = false; } else if (side === 'left' && x > 0) { board[y][x].left = false; board[y][x - 1].right = false; } else if (side === 'right' && x < GRID_SIZE - 1) { board[y][x].right = false; board[y][x + 1].left = false; } }
-        function toggleWall(x, y, side) { if (isOutOfBounds(x, y)) return; if (isBoundaryWall(x, y, side) || isCenterWall(x,y,side)) { return; } let wallExists = false; if (side === 'top') wallExists = board[y][x].top; else if (side === 'bottom') wallExists = board[y][x].bottom; else if (side === 'left') wallExists = board[y][x].left; else if (side === 'right') wallExists = board[y][x].right; if (wallExists) { removeWall(x, y, side); } else { addWall(x, y, side); } renderBoard(); }
-        function isOutOfBounds(x, y) { return x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE; }
-        function isBoundaryWall(x, y, side) { return (side === 'top' && y === 0) || (side === 'bottom' && y === GRID_SIZE - 1) || (side === 'left' && x === 0) || (side === 'right' && x === GRID_SIZE - 1); }
-        function isCenterWall(x,y,side){ if(side === 'bottom' && y === 6 && (x === 7 || x === 8)) return true; if(side === 'top'    && y === 9 && (x === 7 || x === 8)) return true; if(side === 'right'  && x === 6 && (y === 7 || y === 8)) return true; if(side === 'left'   && x === 9 && (y === 7 || y === 8)) return true; return false; }
-
-        // --- Rendering ---
-        function renderBoard() { container.innerHTML = ''; container.className = isEditing ? 'editing-mode' : ''; for (let y = 0; y < GRID_SIZE; y++) { for (let x = 0; x < GRID_SIZE; x++) { let cell = document.createElement('div'); cell.className = 'cell'; cell.dataset.x = x; cell.dataset.y = y; if (board[y][x].top) cell.classList.add('wall-top'); if (board[y][x].right) cell.classList.add('wall-right'); if (board[y][x].bottom) cell.classList.add('wall-bottom'); if (board[y][x].left) cell.classList.add('wall-left'); if ((x === 7 || x === 8) && (y === 7 || y === 8)) { cell.classList.add('center-square'); } cell.removeEventListener('click', handleCellClick); if (isEditing) { cell.addEventListener('click', handleCellClick); } container.appendChild(cell); } } if (!isEditing) { targets.forEach(target => { if (!isOutOfBounds(target.x, target.y)) { let cellIndex = target.y * GRID_SIZE + target.x; let cell = container.children[cellIndex]; if (cell) { let targetDiv = document.createElement('div'); const shapeClass = target.shape ? `target-${target.shape}` : 'target-square'; targetDiv.className = `target ${shapeClass} ${target.color}`; if (target === currentTarget) targetDiv.classList.add('active'); cell.appendChild(targetDiv); } } }); robots.forEach(robot => { if (!isOutOfBounds(robot.x, robot.y)) { let cellIndex = robot.y * GRID_SIZE + robot.x; let cell = container.children[cellIndex]; if (cell) { let robotDiv = document.createElement('div'); robotDiv.className = `robot ${robot.color}`; if (robot === activeRobot) { robotDiv.style.outline = '3px solid white'; robotDiv.style.outlineOffset = '-3px'; } cell.appendChild(robotDiv); } } }); } }
-
-        // --- Event Handlers ---
-        function handleCellClick(event) { if (!isEditing) return; const cell = event.currentTarget; const x = parseInt(cell.dataset.x); const y = parseInt(cell.dataset.y); const clickX = event.offsetX; const clickY = event.offsetY; if (clickY < WALL_CLICK_MARGIN) toggleWall(x, y, 'top'); else if (clickY > CELL_SIZE - WALL_CLICK_MARGIN) toggleWall(x, y, 'bottom'); else if (clickX < WALL_CLICK_MARGIN) toggleWall(x, y, 'left'); else if (clickX > CELL_SIZE - WALL_CLICK_MARGIN) toggleWall(x, y, 'right'); }
-        function handleKeyPress(e) { if (isEditing) return; let key = e.key.toUpperCase(); let robotToSelect = null; if (key === 'R') robotToSelect = robots.find(r => r.color === 'red'); else if (key === 'G') robotToSelect = robots.find(r => r.color === 'green'); else if (key === 'B') robotToSelect = robots.find(r => r.color === 'blue'); else if (key === 'Y') robotToSelect = robots.find(r => r.color === 'yellow'); else if (key === 'U') { undoMove(); return; } else if (key === 'ESCAPE') { window.close(); return; } if (robotToSelect) { activeRobot = robotToSelect; updateInfo(); renderBoard(); } else if (activeRobot) { if (e.key === 'ArrowUp') moveRobot(activeRobot, 0, -1); else if (e.key === 'ArrowDown') moveRobot(activeRobot, 0, 1); else if (e.key === 'ArrowLeft') moveRobot(activeRobot, -1, 0); else if (e.key === 'ArrowRight') moveRobot(activeRobot, 1, 0); } }
-
-        // --- Fonctions de Logique de Jeu ---
-        function selectTarget() {
-            const reachableTargets = targets.filter(target => { const x = target.x; const y = target.y; if (isOutOfBounds(x, y)) return false; const walls = board[y][x]; return walls.top || walls.bottom || walls.left || walls.right; });
-            if (reachableTargets.length === 0) { info.textContent = "Aucune cible valide/atteignable trouvée avec les murs actuels !"; currentTarget = null; return; }
-            currentTarget = reachableTargets[Math.floor(Math.random() * reachableTargets.length)];
-            activeRobot = robots.find(r => r.color === currentTarget.color);
-            updateInfo();
-        }
-
-        // Mise à jour Texte Info en Français
-        function updateInfo() {
-             if (isEditing) {
-                 info.textContent = "Cliquez près des bords pour ajouter/enlever des murs. Appuyez sur 'Démarrer la Partie'.";
-             } else if (!currentTarget) {
-                 info.textContent = "Pas de cible sélectionnée ou disponible.";
+    // --- Fonctions de Logique de Jeu (inchangées) ---
+    function selectTarget() {
+        const reachableTargets = targets.filter(target => { const x = target.x; const y = target.y; if (isOutOfBounds(x, y)) return false; const cell = board[y]?.[x]; if (!cell) return false; return cell.top || cell.bottom || cell.left || cell.right; });
+        if (reachableTargets.length === 0) { info.textContent = "Aucune cible valide/atteignable trouvée avec les murs actuels !"; currentTarget = null; return; }
+        currentTarget = reachableTargets[Math.floor(Math.random() * reachableTargets.length)];
+        activeRobot = robots.find(r => r.color === currentTarget.color);
+        updateInfo();
+    }
+    function updateInfo() {
+         if (isEditing) {
+             info.textContent = "Cliquez près des bords pour ajouter/enlever des murs. Appuyez sur 'Démarrer la Partie'.";
+         } else if (!currentTarget) {
+             info.textContent = "Pas de cible sélectionnée ou disponible.";
+         } else {
+             const cibleCouleur = traduireCouleur(currentTarget.color);
+             const cibleForme = traduireForme(currentTarget.shape);
+             const targetCoords = `(${currentTarget.x}, ${currentTarget.y})`;
+             if (activeRobot) {
+                 const robotCouleur = traduireCouleur(activeRobot.color);
+                 info.textContent = `Cible : ${cibleForme} ${cibleCouleur} ${targetCoords}. Déplacez le robot ${robotCouleur}.`;
              } else {
-                 const cibleCouleur = traduireCouleur(currentTarget.color);
-                 const cibleForme = traduireForme(currentTarget.shape);
-                 const targetCoords = `(${currentTarget.x}, ${currentTarget.y})`;
-                 if (activeRobot) {
-                     const robotCouleur = traduireCouleur(activeRobot.color);
-                     info.textContent = `Cible : ${cibleForme} ${cibleCouleur} ${targetCoords}. Déplacez le robot ${robotCouleur}.`;
-                 } else {
-                     info.textContent = `Cible : ${cibleForme} ${cibleCouleur} ${targetCoords}. Sélectionnez un robot (R, V, B, J).`;
-                 }
+                 info.textContent = `Cible : ${cibleForme} ${cibleCouleur} ${targetCoords}. Sélectionnez un robot (R, V, B, J).`;
              }
-        }
-
-        function moveRobot(robot, dx, dy) { if (!robot || isEditing) return; let x = robot.x; let y = robot.y; let startX = x; let startY = y; while (true) { let nextX = x + dx; let nextY = y + dy; if (dx > 0 && board[y][x].right) break; if (dx < 0 && board[y][x].left) break; if (dy > 0 && board[y][x].bottom) break; if (dy < 0 && board[y][x].top) break; if (isOutOfBounds(nextX, nextY)) break; let collision = robots.some(r => r !== robot && r.x === nextX && r.y === nextY); if (collision) break; x = nextX; y = nextY; } if (x !== startX || y !== startY) { let move = { robot, fromX: startX, fromY: startY, toX: x, toY: y }; robot.x = x; robot.y = y; moves++; movesDisplay.textContent = `Coups : ${moves}`; moveHistory.push(move); renderBoard(); checkWin(); } }
-        function undoMove() { if (isEditing || moveHistory.length === 0) return; let lastMove = moveHistory.pop(); lastMove.robot.x = lastMove.fromX; lastMove.robot.y = lastMove.fromY; moves--; movesDisplay.textContent = `Coups : ${moves}`; updateInfo(); renderBoard(); }
-
-        // Vérification Victoire en Français
-        function checkWin() {
-             if (isEditing || !currentTarget) return;
-             const winner = robots.find(r => r.x === currentTarget.x && r.y === currentTarget.y);
-             if (winner) {
-                 const couleurGagnant = traduireCouleur(winner.color);
-                 const couleurCible = traduireCouleur(currentTarget.color);
-                 const formeCible = traduireForme(currentTarget.shape);
-                 if (winner.color === currentTarget.color) {
-                     info.textContent = `Correct ! Le robot ${couleurGagnant} a atteint la cible ${formeCible} ${couleurCible} en ${moves} coups ! Appuyez sur 'Nouveau Tour'.`;
-                     document.removeEventListener('keydown', handleKeyPress);
-                 } else {
-                     info.textContent = `Un robot ${couleurGagnant} est sur la cible ${couleurCible}. Essayez encore !`;
-                 }
+         }
+    }
+    function moveRobot(robot, dx, dy) { if (!robot || isEditing) return; let x = robot.x; let y = robot.y; let startX = x; let startY = y; while (true) { let nextX = x + dx; let nextY = y + dy; if (isOutOfBounds(x, y) || !board[y] || !board[y][x]) break; // Vérif existance case
+                             if (dx > 0 && board[y][x].right) break; if (dx < 0 && board[y][x].left) break; if (dy > 0 && board[y][x].bottom) break; if (dy < 0 && board[y][x].top) break; if (isOutOfBounds(nextX, nextY)) break; let collision = robots.some(r => r !== robot && r.x === nextX && r.y === nextY); if (collision) break; x = nextX; y = nextY; } if (x !== startX || y !== startY) { let move = { robot, fromX: startX, fromY: startY, toX: x, toY: y }; robot.x = x; robot.y = y; moves++; movesDisplay.textContent = `Coups : ${moves}`; moveHistory.push(move); renderBoard(); checkWin(); } }
+    function undoMove() { if (isEditing || moveHistory.length === 0) return; let lastMove = moveHistory.pop(); lastMove.robot.x = lastMove.fromX; lastMove.robot.y = lastMove.fromY; moves--; movesDisplay.textContent = `Coups : ${moves}`; updateInfo(); renderBoard(); }
+    function checkWin() {
+         if (isEditing || !currentTarget) return;
+         const winner = robots.find(r => r.x === currentTarget.x && r.y === currentTarget.y);
+         if (winner) {
+             const couleurGagnant = traduireCouleur(winner.color);
+             const couleurCible = traduireCouleur(currentTarget.color);
+             const formeCible = traduireForme(currentTarget.shape);
+             if (winner.color === currentTarget.color) {
+                 info.textContent = `Correct ! Le robot ${couleurGagnant} a atteint la cible ${formeCible} ${couleurCible} en ${moves} coups ! Appuyez sur 'Nouveau Tour'.`;
+                 document.removeEventListener('keydown', handleKeyPress);
+                 restartButton.focus(); // Donner le focus au bouton Nouveau Tour
+             } else {
+                 info.textContent = `Un robot ${couleurGagnant} est sur la cible ${couleurCible}. Essayez encore !`;
              }
-        }
+         }
+    }
 
-        // --- Fonctions de Contrôle d'État ---
-        function startGame() { isEditing = false; startGameButton.style.display = 'none'; resetWallsButton.style.display = 'none'; helpButton.style.display = 'none'; /* Cacher Aide pendant jeu */ restartButton.style.display = 'inline-block'; robots = [ { color: 'blue', x: 10, y: 4 }, { color: 'red', x: 4, y: 15 }, { color: 'green', x: 14, y: 14 }, { color: 'yellow', x: 4, y: 14 } ]; moves = 0; movesDisplay.textContent = `Coups : ${moves}`; moveHistory = []; activeRobot = null; currentTarget = null; selectTarget(); renderBoard(); document.addEventListener('keydown', handleKeyPress); }
-        function resetWallsToDefault() { if (!isEditing) return; createEmptyBoard(); addDefaultInternalWalls(); renderBoard(); updateInfo(); }
-        function restartGame() { if (isEditing) return; moves = 0; movesDisplay.textContent = `Coups : ${moves}`; moveHistory = []; activeRobot = null; currentTarget = null; robots = [ { color: 'blue', x: 10, y: 4 }, { color: 'red', x: 4, y: 15 }, { color: 'green', x: 14, y: 14 }, { color: 'yellow', x: 4, y: 14 } ]; selectTarget(); renderBoard(); document.removeEventListener('keydown', handleKeyPress); document.addEventListener('keydown', handleKeyPress); }
 
-        // Fonction pour afficher l'aide en Français
-        function showHelp() {
-            alert(
-                "Aide Ricochet Robots :\n\n" +
-                "MODE ÉDITION :\n" +
-                "- Cliquez près des bords d'une case pour AJOUTER ou ENLEVER un mur.\n" +
-                "- Les murs extérieurs et ceux du carré central ne sont pas modifiables.\n" +
-                "- Utilisez 'Réinitialiser Murs' pour revenir à la configuration de départ.\n" +
-                "- Cliquez sur 'Démarrer la Partie' quand le plateau vous convient.\n\n" +
-                "MODE JEU :\n" +
-                "- But : Amener le robot de la bonne couleur sur la cible (même couleur et forme) en un minimum de coups.\n" +
-                "- Sélection Robot : Appuyez sur R (Rouge), V (Vert), B (Bleu) ou J (Jaune) pour choisir le robot.\n" +
-                "- Déplacement : Utilisez les touches fléchées. Le robot glisse jusqu'à un obstacle (mur ou autre robot).\n" +
-                "- Cible : La cible à atteindre est entourée d'une bordure noire.\n" +
-                "- Commandes Jeu :\n" +
-                "  - U : Annuler le dernier coup.\n" +
-                "  - Nouveau Tour : Recommence une partie avec une nouvelle cible (garde les murs actuels).\n" +
-                "  - Échap : Quitter.\n\n" +
-                "Conseil : Placez les cibles près des murs pour pouvoir vous arrêter dessus !"
-            );
-        }
+    // --- Fonctions de Contrôle d'État (inchangées) ---
+    function startGame() { isEditing = false; startGameButton.style.display = 'none'; resetWallsButton.style.display = 'none'; helpButton.style.display = 'none'; restartButton.style.display = 'inline-block'; robots = [ { color: 'blue', x: 10, y: 4 }, { color: 'red', x: 4, y: 15 }, { color: 'green', x: 14, y: 14 }, { color: 'yellow', x: 4, y: 14 } ]; /* TODO: Vérifier si ces positions de départ sont valides avec les nouveaux murs */ moves = 0; movesDisplay.textContent = `Coups : ${moves}`; moveHistory = []; activeRobot = null; currentTarget = null; selectTarget(); renderBoard(); document.addEventListener('keydown', handleKeyPress); }
+    function resetWallsToDefault() { if (!isEditing) return; createEmptyBoard(); addDefaultInternalWalls(); renderBoard(); updateInfo(); }
+    function restartGame() { if (isEditing) return; moves = 0; movesDisplay.textContent = `Coups : ${moves}`; moveHistory = []; activeRobot = null; currentTarget = null; /* Repositionner les robots aléatoirement ou à des positions de départ fixes valides */ robots = [ { color: 'blue', x: 10, y: 4 }, { color: 'red', x: 4, y: 15 }, { color: 'green', x: 14, y: 14 }, { color: 'yellow', x: 4, y: 14 } ]; /* TODO: Vérifier ces positions */ selectTarget(); renderBoard(); document.removeEventListener('keydown', handleKeyPress); document.addEventListener('keydown', handleKeyPress); }
+    function showHelp() {
+        alert(
+            "Aide Ricochet Robots :\n\n" +
+            "MODE ÉDITION :\n" +
+            "- Cliquez près des bords d'une case pour AJOUTER ou ENLEVER un mur.\n" +
+            "- Les murs extérieurs, centraux et les 8 murs près des bords ne sont pas modifiables.\n" + // Mise à jour aide
+            "- Utilisez 'Réinitialiser Murs' pour revenir à la configuration de départ.\n" +
+            "- Cliquez sur 'Démarrer la Partie' quand le plateau vous convient.\n\n" +
+            "MODE JEU :\n" +
+            "- But : Amener le robot de la bonne couleur sur la cible (même couleur et forme) en un minimum de coups.\n" +
+            "- Sélection Robot : Appuyez sur R (Rouge), V (Vert), B (Bleu) ou J (Jaune) pour choisir le robot.\n" +
+            "- Déplacement : Utilisez les touches fléchées. Le robot glisse jusqu'à un obstacle (mur ou autre robot).\n" +
+            "- Cible : La cible à atteindre est entourée d'une bordure noire.\n" +
+            "- Commandes Jeu :\n" +
+            "  - U : Annuler le dernier coup.\n" +
+            "  - Nouveau Tour : Recommence une partie avec une nouvelle cible (garde les murs actuels).\n" +
+            "  - Échap : Quitter.\n\n" +
+            "Conseil : Placez les cibles près des murs pour pouvoir vous arrêter dessus !"
+        );
+    }
 
-        // --- Initialisation ---
-        function initializeApp() {
-            isEditing = true;
-            createEmptyBoard();
-            addDefaultInternalWalls(); // Assure que la bonne disposition est chargée
-            renderBoard();
-            startGameButton.style.display = 'inline-block';
-            resetWallsButton.style.display = 'inline-block';
-            helpButton.style.display = 'inline-block'; // Afficher Aide en mode édition
-            restartButton.style.display = 'none';
-            updateInfo();
-            document.removeEventListener('keydown', handleKeyPress);
-            // Attacher l'écouteur au bouton Aide
-            helpButton.addEventListener('click', showHelp);
-        }
+    // --- Initialisation (inchangée) ---
+    function initializeApp() {
+        isEditing = true;
+        createEmptyBoard();
+        addDefaultInternalWalls(); // Appelle la version modifiée qui inclut les 8 murs
+        renderBoard();
+        startGameButton.style.display = 'inline-block';
+        resetWallsButton.style.display = 'inline-block';
+        helpButton.style.display = 'inline-block';
+        restartButton.style.display = 'none';
+        updateInfo();
+        document.removeEventListener('keydown', handleKeyPress);
+        helpButton.addEventListener('click', showHelp);
+    }
 
-        initializeApp(); // Démarrage de l'application
+    initializeApp(); // Démarrage de l'application
 
-    </script>
+</script>
+
 </body>
 </html>
