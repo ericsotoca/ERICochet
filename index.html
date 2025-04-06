@@ -381,9 +381,9 @@
             const targetCoords = `(${currentTarget.x}, ${currentTarget.y})`;
             if (activeRobot) {
                 const robotCouleur = traduireCouleur(activeRobot.color);
-                info.textContent = `Cible : ${cibleForme} ${cibleCouleur} ${targetCoords}. Robot actif : ${robotCouleur}. Tous les déplacements comptent.`;
+                info.textContent = `Amenez le robot ${cibleCouleur} sur la cible ${cibleCouleur} (${cibleForme} ${cibleCouleur} à ${targetCoords}). Robot actif : ${robotCouleur}. Tous les déplacements comptent.`;
             } else {
-                info.textContent = `Cible : ${cibleForme} ${cibleCouleur} ${targetCoords}. Cliquez sur une couleur pour sélectionner un robot.`;
+                info.textContent = `Amenez le robot ${cibleCouleur} sur la cible ${cibleCouleur} (${cibleForme} ${cibleCouleur} à ${targetCoords}). Cliquez sur une couleur pour sélectionner un robot.`;
             }
         }
     }
@@ -443,7 +443,7 @@
                 document.removeEventListener('keydown', handleKeyPress);
                 restartButton.focus();
             } else {
-                info.textContent = `Un robot ${couleurGagnant} est sur la cible ${couleurCible}. Essayez encore !`;
+                info.textContent = `Un robot ${couleurGagnant} est sur la cible ${couleurCible}. Seule la couleur ${couleurCible} peut atteindre cette cible !`;
             }
         }
     }
@@ -452,7 +452,7 @@
         isEditing = false;
         startGameButton.style.display = 'none';
         resetWallsButton.style.display = 'none';
-        helpButton.style.display = 'none';
+        helpButton.style.display = 'inline-block'; // Bouton Aide reste visible
         restartButton.style.display = 'inline-block';
         robotSelector.style.display = 'flex';
         robots = [
@@ -507,13 +507,14 @@
             "- Utilisez 'Réinitialiser Murs' pour revenir à la configuration de départ.\n" +
             "- Cliquez sur 'Démarrer la Partie' quand le plateau vous convient.\n\n" +
             "MODE JEU :\n" +
-            "- But : Amener le robot de la bonne couleur sur la cible (même couleur et forme) en un minimum de coups.\n" +
+            "- But : Amener le robot de la couleur correspondante sur la cible (même couleur et forme) en un minimum de coups.\n" +
+            "- Règle importante : Seule la couleur indiquée (par exemple, robot jaune pour une cible jaune) peut atteindre la cible pour gagner.\n" +
+            "- Murs mobiles : Vous pouvez déplacer les autres robots pour créer des obstacles temporaires, mais ils ne peuvent pas atteindre la cible à la place du robot de la bonne couleur.\n" +
             "- Sélection Robot : Cliquez sur une couleur (ou R, V, B, J sur clavier).\n" +
             "- Déplacement : Flèches ou boutons (↑↓←→). Le robot glisse jusqu’à un obstacle. Tous les déplacements comptent.\n" +
-            "- Astuce : Déplacez les autres robots pour créer des murs mobiles.\n" +
             "- Cible : Entourée d’une bordure noire.\n" +
             "- Commandes : U (Annuler), Nouveau Tour, Échap (Quitter).\n\n" +
-            "Conseil : Positionnez les robots stratégiquement !"
+            "Conseil : Positionnez les robots stratégiquement pour bloquer ou guider !"
         );
     }
 
