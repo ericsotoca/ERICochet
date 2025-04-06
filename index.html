@@ -71,11 +71,11 @@
         let board = [];
         let robots = [];
         let targets = [ /* Liste des cibles */
-            { shape: 'circle', color: 'blue', x: 3, y: 2 }, { shape: 'square', color: 'yellow', x: 5, y: 3 },
+            { shape: 'circle', color: 'blue', x: 5, y: 1 }, { shape: 'square', color: 'yellow', x: 7, y: 2 },
             { shape: 'star', color: 'red', x: 3, y: 5 }, { shape: 'hexagon', color: 'green', x: 5, y: 6 },
             { shape: 'circle', color: 'yellow', x: 2, y: 8 }, { shape: 'triangle', color: 'blue', x: 3, y: 11 },
             { shape: 'star', color: 'green', x: 5, y: 12 }, { shape: 'triangle', color: 'blue', x: 6, y: 14 },
-            { shape: 'circle', color: 'red', x: 11, y: 1 }, { shape: 'triangle', color: 'green', x: 14, y: 3 },
+            { shape: 'circle', color: 'red', x: 11, y: 2 }, { shape: 'triangle', color: 'green', x: 14, y: 3 },
             { shape: 'star', color: 'yellow', x: 12, y: 6 }, { shape: 'star', color: 'blue', x: 11, y: 10 },
             { shape: 'hexagon', color: 'yellow', x: 10, y: 11 }, { shape: 'triangle', color: 'red', x: 14, y: 12 },
             { shape: 'triangle', color: 'yellow', x: 7, y: 7 }
@@ -105,18 +105,83 @@
         // --- Fonctions de Gestion des Murs ---
         function createEmptyBoard() { board = []; for (let y = 0; y < GRID_SIZE; y++) { let row = []; for (let x = 0; x < GRID_SIZE; x++) { let walls = { top: false, right: false, bottom: false, left: false }; if (x === 0) walls.left = true; if (x === GRID_SIZE - 1) walls.right = true; if (y === 0) walls.top = true; if (y === GRID_SIZE - 1) walls.bottom = true; row.push(walls); } board.push(row); } addWall(7, 6, 'bottom'); addWall(8, 6, 'bottom'); addWall(6, 7, 'right');  addWall(8, 7, 'right'); addWall(6, 8, 'right');  addWall(8, 8, 'right'); addWall(7, 8, 'bottom'); addWall(8, 8, 'bottom'); }
 
-        // CORRECTION: Utilisation de la disposition de murs complexe (image 17:05)
+        // CORRECTION: Fonction pour ajouter les murs correspondant
+        // aux cibles définies dans le tableau 'targets' du code.
         function addDefaultInternalWalls() {
-            addWall(3, 1, 'bottom'); addWall(1, 2, 'right'); addWall(5, 3, 'bottom');
-            addWall(4, 5, 'right'); addWall(1, 6, 'bottom'); addWall(3, 7, 'right');
-            addWall(10, 0, 'bottom'); addWall(13, 0, 'bottom'); addWall(14, 1, 'right');
-            addWall(12, 2, 'bottom'); addWall(9, 3, 'right'); addWall(11, 4, 'bottom');
-            addWall(14, 5, 'right'); addWall(13, 6, 'bottom'); addWall(11, 7, 'right');
-            addWall(1, 8, 'bottom'); addWall(3, 9, 'right'); addWall(5, 10, 'bottom');
-            addWall(1, 11, 'right'); addWall(6, 11, 'right'); addWall(3, 13, 'bottom');
-            addWall(4, 14, 'right'); addWall(14, 9, 'right'); addWall(12, 10, 'bottom');
-            addWall(8, 11, 'bottom'); addWall(10, 12, 'right'); addWall(13, 13, 'right');
-            addWall(10, 14, 'right'); addWall(13, 15, 'bottom'); addWall(13, 15, 'bottom'); addWall(13, 15, 'bottom'); addWall(11, 14, 'bottom');
+
+            // Cible (11, 2) - Cercle Rouge: murs en bas et à gauche
+            addWall(11, 2, 'bottom');
+            addWall(11, 2, 'right');
+
+            // Cible (7, 2) - Carré Jaune: murs en bas et à gauche
+            addWall(7, 2, 'bottom');
+            addWall(7, 2, 'right');
+
+            // Cible (5, 1) - Cercle Bleu: murs en bas et à gauche
+            addWall(5, 1, 'bottom');
+            addWall(5, 1, 'left');
+
+            // Cible (5, 3) - Carré Jaune: murs en haut et à droite
+            addWall(5, 3, 'top');
+            addWall(5, 3, 'right');
+
+            // Cible (3, 5) - Étoile Rouge: murs en bas et à droite
+            addWall(3, 5, 'bottom');
+            addWall(3, 5, 'right');
+
+            // Cible (5, 6) - Hexagone Vert: murs en haut et à droite
+            addWall(5, 6, 'top');
+            addWall(5, 6, 'right');
+
+            // Cible (2, 8) - Cercle Jaune: murs en haut et à gauche
+            addWall(2, 8, 'top');
+            addWall(2, 8, 'left');
+
+            // Cible (3, 11) - Triangle Bleu: murs en bas et à droite
+            addWall(3, 11, 'bottom');
+            addWall(3, 11, 'right');
+
+            // Cible (5, 12) - Étoile Verte: murs en haut et à gauche
+            addWall(5, 12, 'top');
+            addWall(5, 12, 'left');
+
+            // Cible (6, 14) - Triangle Bleu: murs en haut et à droite
+            addWall(6, 14, 'top');
+            addWall(6, 14, 'right');
+
+
+
+            // Cible (14, 3) - Triangle Vert: murs en bas et à gauche
+            addWall(14, 3, 'bottom');
+            addWall(14, 3, 'left');
+
+            // Cible (12, 6) - Étoile Jaune: murs en haut et à gauche
+            addWall(12, 6, 'top');
+            addWall(12, 6, 'left');
+
+            // Cible (11, 10) - Étoile Bleue: murs en bas et à droite
+            addWall(11, 10, 'bottom');
+            addWall(11, 10, 'right');
+
+            // Cible (10, 11) - Hexagone Jaune: murs en haut et à droite
+            addWall(10, 11, 'top');
+            addWall(10, 11, 'right');
+
+            // Cible (14, 12) - Triangle Rouge: murs en haut et à gauche
+            addWall(14, 12, 'top');
+            addWall(14, 12, 'left');
+
+            // Cible (7, 7) - Triangle Jaune: C'est une cible dans le carré central.
+            // Ses murs "de coin" (bas et gauche par rapport à la case 7,7) font partie
+            // des murs fixes du carré central et sont gérés par createEmptyBoard()
+            // ou empêchés par isCenterWall(). Pas besoin d'appels addWall ici.
+
+            // Cible (6, 3) [Non listée dans le code mais visible sur la 1ere photo]: murs bas et gauche
+            // addWall(6, 3, 'bottom'); addWall(6, 3, 'left');
+            // Cible (12, 4) [Non listée dans le code mais visible sur la 1ere photo]: murs haut et gauche
+            // addWall(12, 4, 'top'); addWall(12, 4, 'left');
+            // ... etc pour les autres cibles de la 1ere photo si besoin
+            // MAIS cette fonction ne doit contenir QUE les murs pour les cibles DANS le code actuel.
         }
 
         function addWall(x, y, side) { if (isOutOfBounds(x, y)) return; if (isBoundaryWall(x, y, side) || isCenterWall(x,y,side)) return; if (side === 'top' && y > 0) { board[y][x].top = true; board[y - 1][x].bottom = true; } else if (side === 'bottom' && y < GRID_SIZE - 1) { board[y][x].bottom = true; board[y + 1][x].top = true; } else if (side === 'left' && x > 0) { board[y][x].left = true; board[y][x - 1].right = true; } else if (side === 'right' && x < GRID_SIZE - 1) { board[y][x].right = true; board[y][x + 1].left = true; } }
