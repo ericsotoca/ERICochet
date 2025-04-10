@@ -3,130 +3,323 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E'Ricochet</title>
+    <title>E'Ricochet (Amélioré)</title>
     <style>
-        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; margin: 0; padding: 10px; }
+        /* Improvement 3: CSS Variables */
+        :root {
+            --grid-size: 16;
+            --board-bg: #aaa;
+            --board-border: #604028; /* Marron mur */
+            --cell-bg: #e8e8e8;
+            --cell-bg-pattern1: #fdfdfd;
+            --center-square-bg: #d3d3d3;
+            --wall-color: var(--board-border);
+            --wall-thickness: 4px;
+            --wall-click-margin: 10px; /* Improvement JS uses this too */
+
+            --robot-blue-bg: rgba(65, 105, 225, 0.75); /* RoyalBlue */
+            --robot-red-bg: rgba(220, 20, 60, 0.75);   /* Crimson */
+            --robot-green-bg: rgba(50, 205, 50, 0.75); /* LimeGreen */
+            --robot-yellow-bg: rgba(255, 215, 0, 0.75); /* Gold */
+
+            --target-blue: #4169E1;
+            --target-red: #DC143C;
+            --target-green: #32CD32;
+            --target-yellow: #FFD700;
+            --target-active-border: black;
+
+            --button-start-bg: #28a745;
+            --button-start-hover-bg: #218838;
+            --button-reset-bg: #ffc107;
+            --button-reset-hover-bg: #e0a800;
+            --button-help-bg: #17a2b8;
+            --button-help-hover-bg: #138496;
+            --button-restart-bg: #007bff;
+            --button-restart-hover-bg: #0056b3;
+
+            --font-family: Arial, sans-serif;
+            --base-font-size: 1rem;
+
+            /* Dynamically updated by JS if possible, otherwise a good guess */
+            --cell-size: calc(min(90vw, 640px) / var(--grid-size));
+        }
+
+        body {
+            font-family: var(--font-family);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 10px;
+        }
         h1 { font-size: 1.5rem; margin-bottom: 10px; }
-        #game-container { 
-            display: grid; 
-            grid-template-columns: repeat(16, 1fr); 
-            grid-template-rows: repeat(16, 1fr); 
-            gap: 1px; 
-            background-color: #aaa; 
-            border: 4px solid #604028; 
-            position: relative; 
-            margin-bottom: 10px; 
-            width: 90vw; 
-            max-width: 640px; 
-            aspect-ratio: 1; 
+
+        #game-container {
+            display: grid;
+            grid-template-columns: repeat(var(--grid-size), 1fr);
+            grid-template-rows: repeat(var(--grid-size), 1fr);
+            gap: 1px;
+            background-color: var(--board-bg);
+            border: 4px solid var(--board-border);
+            position: relative;
+            margin-bottom: 10px;
+            width: 90vw;
+            max-width: 640px;
+            aspect-ratio: 1;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Improvement 8: Mode transition */
         }
-        .cell { 
-            background-color: #e8e8e8; 
-            position: relative; 
-            box-sizing: border-box; 
-            background-image: linear-gradient(45deg, #fdfdfd 25%, transparent 25%), linear-gradient(-45deg, #fdfdfd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #fdfdfd 75%), linear-gradient(-45deg, transparent 75%, #fdfdfd 75%); 
-            background-size: 6px 6px; 
-            background-position: 0 0, 0 3px, 3px -3px, -3px 0px; 
+
+        .cell {
+            background-color: var(--cell-bg);
+            position: relative;
+            box-sizing: border-box;
+            /* Subtle pattern */
+            background-image: linear-gradient(45deg, var(--cell-bg-pattern1) 25%, transparent 25%), linear-gradient(-45deg, var(--cell-bg-pattern1) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--cell-bg-pattern1) 75%), linear-gradient(-45deg, transparent 75%, var(--cell-bg-pattern1) 75%);
+            background-size: 6px 6px;
+            background-position: 0 0, 0 3px, 3px -3px, -3px 0px;
         }
-        .center-square { background-color: #d3d3d3 !important; background-image: none !important; }
-        .wall-top::before, .wall-bottom::before, .wall-left::after, .wall-right::after { content: ''; position: absolute; background-color: #604028; z-index: 5; }
-        .wall-top::before { top: -2px; left: 0; right: 0; height: 4px; }
-        .wall-bottom::before { bottom: -2px; left: 0; right: 0; height: 4px; }
-        .wall-left::after { top: 0; bottom: 0; left: -2px; width: 4px; }
-        .wall-right::after { top: 0; bottom: 0; right: -2px; width: 4px; }
-        .robot { 
-            width: 75%; 
-            height: 75%; 
-            border-radius: 50%; 
-            position: absolute; 
-            top: 12.5%; 
-            left: 12.5%; 
-            z-index: 10; 
-            box-shadow: 1px 1px 3px rgba(0,0,0,0.5); 
-            border: 1px solid rgba(0,0,0,0.3); 
-            overflow: hidden; 
+        .center-square { background-color: var(--center-square-bg) !important; background-image: none !important; }
+
+        /* Walls using ::before and ::after for better control */
+        .wall-top::before, .wall-bottom::before, .wall-left::after, .wall-right::after {
+            content: '';
+            position: absolute;
+            background-color: var(--wall-color);
+            z-index: 5;
         }
-        .robot::after { content: ''; position: absolute; width: 30%; height: 30%; background-color: white; top: 50%; left: 50%; transform: translate(-50%, -50%); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
-        .blue { background-color: #4169E1; } .red { background-color: #DC143C; } .green { background-color: #32CD32; } .yellow { background-color: #FFD700; }
-        .target { 
-            width: 75%; 
-            height: 75%; 
-            position: absolute; 
-            top: 12.5%; 
-            left: 12.5%; 
-            z-index: 1; 
-            background-size: contain; 
-            background-repeat: no-repeat; 
-            background-position: center; 
+        .wall-top::before { top: calc(var(--wall-thickness) / -2); left: 0; right: 0; height: var(--wall-thickness); }
+        .wall-bottom::before { bottom: calc(var(--wall-thickness) / -2); left: 0; right: 0; height: var(--wall-thickness); }
+        .wall-left::after { top: 0; bottom: 0; left: calc(var(--wall-thickness) / -2); width: var(--wall-thickness); }
+        .wall-right::after { top: 0; bottom: 0; right: calc(var(--wall-thickness) / -2); width: var(--wall-thickness); }
+
+        /* Improvement 1: Robot Styling */
+        .robot-icon {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: calc(var(--cell-size, 40px) * 0.7); /* Dynamic size */
+            line-height: 1;
+            border-radius: 4px;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+            /* Improvement 6: Animation */
+            transition: top 0.2s ease-in-out, left 0.2s ease-in-out;
+            user-select: none; /* Prevent text selection */
         }
-        .target.blue { background-color: #4169E1; } .target.red { background-color: #DC143C; } .target.green { background-color: #32CD32; } .target.yellow { background-color: #FFD700; }
-        .target-circle { border-radius: 50%; } .target-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); } .target-square { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); } .target-hexagon { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); } .target-star { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
-        .target.active { box-shadow: 0 0 0 3px black; }
-        #info { margin-top: 0; font-size: 1rem; font-weight: bold; margin-bottom: 5px; min-height: 20px; text-align: center; }
-        #moves { margin-top: 5px; font-size: 1rem; text-align: center; }
+        .robot-bg-blue { background-color: var(--robot-blue-bg); }
+        .robot-bg-red { background-color: var(--robot-red-bg); }
+        .robot-bg-green { background-color: var(--robot-green-bg); }
+        .robot-bg-yellow { background-color: var(--robot-yellow-bg); }
+
+        /* Highlight for active robot */
+        .robot-icon.active-robot-indicator {
+            outline: 3px solid white;
+            outline-offset: -3px;
+        }
+
+        /* Target Styling */
+        .target {
+            width: 75%; height: 75%;
+            position: absolute; top: 12.5%; left: 12.5%;
+            z-index: 1;
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+        }
+        .target.blue { background-color: var(--target-blue); }
+        .target.red { background-color: var(--target-red); }
+        .target.green { background-color: var(--target-green); }
+        .target.yellow { background-color: var(--target-yellow); }
+        /* Target Shapes */
+        .target-circle { border-radius: 50%; }
+        .target-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+        .target-square { /* Default rect is fine */ }
+        .target-hexagon { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+        .target-star { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+        /* Active Target Highlight */
+        .target.active { box-shadow: 0 0 0 3px var(--target-active-border); }
+
+        /* Info and Moves Display */
+        #info, #moves {
+            margin-top: 5px;
+            font-size: var(--base-font-size);
+            text-align: center;
+            min-height: 20px; /* Prevent layout shift */
+        }
+        #info { font-weight: bold; margin-bottom: 5px; }
+
+        /* Controls Area */
         #controls { text-align: center; margin-bottom: 10px; }
-        #controls button { margin: 5px; padding: 8px 12px; font-size: 0.9rem; color: white; border: none; cursor: pointer; border-radius: 4px; }
-        #start-game-button { background-color: #28a745; } #start-game-button:hover { background-color: #218838; }
-        #reset-walls-button { background-color: #ffc107; color: #333; } #reset-walls-button:hover { background-color: #e0a800; }
-        #help-button { background-color: #17a2b8; } #help-button:hover { background-color: #138496; }
-        #restart-button { background-color: #007bff; } #restart-button:hover { background-color: #0056b3; }
-        #robot-selector { display: flex; gap: 10px; margin-bottom: 10px; }
-        .robot-button { 
-            width: 40px; 
-            height: 40px; 
-            border-radius: 50%; 
-            border: 2px solid #333; 
-            cursor: pointer; 
-            transition: all 0.3s; 
+        #controls button {
+            margin: 5px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
         }
-        .robot-button.active { 
-            animation: pulse 1s infinite; 
-            box-shadow: 0 0 10px rgba(0, 0, 255, 0.8); 
+        #start-game-button { background-color: var(--button-start-bg); }
+        #start-game-button:hover { background-color: var(--button-start-hover-bg); }
+        #reset-walls-button { background-color: var(--button-reset-bg); color: #333; }
+        #reset-walls-button:hover { background-color: var(--button-reset-hover-bg); }
+        #help-button { background-color: var(--button-help-bg); }
+        #help-button:hover { background-color: var(--button-help-hover-bg); }
+        #restart-button { background-color: var(--button-restart-bg); }
+        #restart-button:hover { background-color: var(--button-restart-hover-bg); }
+
+        /* Robot Selector Styling */
+        #robot-selector { display: flex; gap: 10px; margin-bottom: 10px; justify-content: center;}
+        .robot-button {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            border: 2px solid #333;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex; /* For centering emoji if added */
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem; /* Emoji size in button */
+            color: rgba(0,0,0,0.7); /* Emoji color */
+            background-clip: padding-box; /* Prevent background color from overlapping border */
+            user-select: none;
         }
-        @keyframes pulse { 
-            0% { transform: scale(1); } 
-            50% { transform: scale(1.1); } 
-            100% { transform: scale(1); } 
+        /* Improvement 1: Use BG colors for buttons */
+        .robot-button.red { background-color: var(--robot-red-bg); }
+        .robot-button.green { background-color: var(--robot-green-bg); }
+        .robot-button.blue { background-color: var(--robot-blue-bg); }
+        .robot-button.yellow { background-color: var(--robot-yellow-bg); }
+
+        .robot-button.active {
+            animation: pulse 1s infinite;
+            box-shadow: 0 0 10px rgba(0, 0, 255, 0.8);
         }
-        #mobile-controls { display: none; flex-wrap: wrap; justify-content: center; gap: 5px; }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Mobile Controls */
+        #mobile-controls { display: none; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 10px; }
         #mobile-controls button { padding: 10px; font-size: 1rem; width: 60px; }
-        .editing-mode .cell { cursor: pointer; }
-        .editing-mode .cell:hover { background-color: #d0d0f0; opacity: 0.8; }
-        @media (max-width: 600px) { 
-            #mobile-controls { display: flex; } 
-            #info { font-size: 0.9rem; }
-            #moves { font-size: 0.9rem; }
-            .robot-button { width: 30px; height: 30px; }
+
+        /* Improvement 8: Editing Mode Styles */
+        body.editing-mode #game-container {
+            border-color: var(--button-reset-bg); /* Yellow border in edit mode */
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.4);
         }
+        body.editing-mode .cell { cursor: pointer; }
+        body.editing-mode .cell:hover { background-color: #d0d0f0 !important; opacity: 0.8; }
+        body.playing-mode #game-container {
+            border-color: var(--board-border); /* Normal border in play mode */
+            box-shadow: none;
+        }
+
+        /* Improvement 4: Help Modal Styles */
+        .modal {
+            display: none; position: fixed; z-index: 100;
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe; margin: 10% auto; padding: 20px;
+            border: 1px solid #888; width: 80%; max-width: 600px;
+            position: relative; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .close-button {
+            color: #aaa; position: absolute; top: 10px; right: 15px;
+            font-size: 28px; font-weight: bold; cursor: pointer;
+            line-height: 1;
+        }
+        .close-button:hover, .close-button:focus { color: black; text-decoration: none; }
+        .modal-content h2 { margin-top: 0; }
+        .modal-content p { margin-bottom: 1em; }
+
+        /* Responsive Adjustments */
+        @media (max-width: 600px) {
+            #mobile-controls { display: flex; }
+            #info, #moves { font-size: 0.9rem; }
+            .robot-button { width: 35px; height: 35px; font-size: 1.3rem; }
+            .modal-content { margin: 5% auto; width: 90%; }
+        }
+
     </style>
 </head>
 <body>
-<h1>E'Ricochet</h1>
-<div id="game-container"></div>
-<div id="info">Cliquez près des bords pour ajouter/enlever des murs. Appuyez sur "Démarrer la Partie".</div>
-<div id="moves">Coups : 0</div>
-<div id="robot-selector" style="display: none;">
-    <div class="robot-button red" data-color="red" onclick="selectRobot('red')"></div>
-    <div class="robot-button green" data-color="green" onclick="selectRobot('green')"></div>
-    <div class="robot-button blue" data-color="blue" onclick="selectRobot('blue')"></div>
-    <div class="robot-button yellow" data-color="yellow" onclick="selectRobot('yellow')"></div>
-</div>
-<div id="controls">
-    <button id="start-game-button" onclick="startGame()">Démarrer la Partie</button>
-    <button id="reset-walls-button" onclick="resetWallsToDefault()">Réinitialiser Murs</button>
-    <button id="help-button">Aide</button>
-    <button id="restart-button" onclick="restartGame()" style="display: none;">Nouveau Tour</button>
-</div>
-<div id="mobile-controls">
-    <button onclick="moveRobot(activeRobot, 0, -1)">↑</button>
-    <button onclick="moveRobot(activeRobot, -1, 0)">←</button>
-    <button onclick="moveRobot(activeRobot, 1, 0)">→</button>
-    <button onclick="moveRobot(activeRobot, 0, 1)">↓</button>
-    <button onclick="undoMove()">U</button>
-</div>
+    <h1>E'Ricochet <span style="font-size: 0.8em; color: #555;">(Amélioré)</span></h1>
+
+    <div id="game-container"></div>
+
+    <!-- Improvement 5: Add aria-live -->
+    <div id="info" aria-live="polite">Chargement...</div>
+    <div id="moves" aria-live="polite">Coups : 0</div>
+
+    <div id="robot-selector" style="display: none;">
+        <!-- Improvement 1: Robot buttons with BG colors -->
+        <div class="robot-button red" data-color="red" onclick="selectRobot('red')" aria-label="Sélectionner Robot Rouge">🤖</div>
+        <div class="robot-button green" data-color="green" onclick="selectRobot('green')" aria-label="Sélectionner Robot Vert">🤖</div>
+        <div class="robot-button blue" data-color="blue" onclick="selectRobot('blue')" aria-label="Sélectionner Robot Bleu">🤖</div>
+        <div class="robot-button yellow" data-color="yellow" onclick="selectRobot('yellow')" aria-label="Sélectionner Robot Jaune">🤖</div>
+    </div>
+
+    <div id="controls">
+        <!-- Improvement 5: Add aria-label -->
+        <button id="start-game-button" onclick="startGame()" aria-label="Démarrer la partie">Démarrer la Partie</button>
+        <button id="reset-walls-button" onclick="resetWallsToDefault()" aria-label="Réinitialiser les murs par défaut">Réinitialiser Murs</button>
+        <button id="help-button" aria-label="Afficher l'aide du jeu">Aide</button>
+        <button id="restart-button" onclick="restartGame()" style="display: none;" aria-label="Commencer un nouveau tour">Nouveau Tour</button>
+    </div>
+
+    <div id="mobile-controls">
+        <button onclick="moveActiveRobot(0, -1)" aria-label="Déplacer vers le haut">↑</button>
+        <button onclick="moveActiveRobot(-1, 0)" aria-label="Déplacer vers la gauche">←</button>
+        <button onclick="moveActiveRobot(1, 0)" aria-label="Déplacer vers la droite">→</button>
+        <button onclick="moveActiveRobot(0, 1)" aria-label="Déplacer vers le bas">↓</button>
+        <button onclick="undoMove()" aria-label="Annuler le dernier coup">U</button>
+    </div>
+
+    <!-- Improvement 4: Help Modal HTML -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeHelpModal()" aria-label="Fermer l'aide">×</span>
+            <h2>Aide E'Ricochet</h2>
+            <p><strong>MODE ÉDITION (Bordure Jaune):</strong><br>
+               - Cliquez près des bords internes d’une case pour ajouter ou enlever un mur (zone sensible d'environ 10 pixels).<br>
+               - Les murs extérieurs, centraux, près des coins et les 8 murs fixes perpendiculaires aux bords ne sont pas modifiables.<br>
+               - Utilisez 'Réinitialiser Murs' pour revenir à la configuration par défaut.<br>
+               - Cliquez sur 'Démarrer la Partie' quand le plateau vous convient.</p>
+            <p><strong>MODE JEU (Bordure Marron):</strong><br>
+               - But : Amener le robot 🤖 de la couleur correspondante sur la cible (même couleur et forme) en un minimum de coups.<br>
+               - Règle importante : Seul le robot de la couleur indiquée peut valider la cible.<br>
+               - Murs mobiles : Les autres robots 🤖 servent d'obstacles temporaires.<br>
+               - Sélection Robot : Cliquez sur une couleur 🤖 (ou touches R, V/G, B, J/Y sur clavier).<br>
+               - Déplacement : Flèches du clavier ou boutons (↑↓←→). Le robot glisse jusqu’au prochain obstacle (mur ou autre robot). Chaque déplacement compte.<br>
+               - Cible : Entourée d’une bordure noire.<br>
+               - Commandes : U (Annuler dernier coup), Nouveau Tour (après victoire ou pour changer de cible).</p>
+            <p>Conseil : Anticipez les ricochets et utilisez les autres robots pour vous bloquer au bon endroit !</p>
+        </div>
+    </div>
+
 <script>
+    // --- Constants --- Improvement 9
     const GRID_SIZE = 16;
-    const WALL_CLICK_MARGIN = 10;
+    const WALL_CLICK_MARGIN = 10; // Must match CSS :root variable conceptually
+    const ROBOT_COLORS = { RED: 'red', GREEN: 'green', BLUE: 'blue', YELLOW: 'yellow' };
+    const TARGET_SHAPES = { CIRCLE: 'circle', SQUARE: 'square', TRIANGLE: 'triangle', HEXAGON: 'hexagon', STAR: 'star' };
+    const DIRECTIONS = { UP: { dx: 0, dy: -1 }, DOWN: { dx: 0, dy: 1 }, LEFT: { dx: -1, dy: 0 }, RIGHT: { dx: 1, dy: 0 } };
+    const KEYS = {
+        R: 'R', G: 'G', B: 'B', Y: 'Y', V: 'V', J: 'J', // Accept French keys too
+        U: 'U', ARROW_UP: 'ArrowUp', ARROW_DOWN: 'ArrowDown', ARROW_LEFT: 'ArrowLeft', ARROW_RIGHT: 'ArrowRight',
+        ESCAPE: 'Escape'
+    };
+
+    // --- DOM Elements ---
     const container = document.getElementById('game-container');
     const info = document.getElementById('info');
     const movesDisplay = document.getElementById('moves');
@@ -135,176 +328,303 @@
     const restartButton = document.getElementById('restart-button');
     const helpButton = document.getElementById('help-button');
     const robotSelector = document.getElementById('robot-selector');
+    const mobileControls = document.getElementById('mobile-controls'); // Get mobile controls div
+    const helpModal = document.getElementById('help-modal');
+
+    // --- Game State ---
     let board = [];
     let robots = [];
+    // Base target definitions (positions can be randomized later if desired)
     let targets = [
-        { shape: 'circle', color: 'blue', x: 5, y: 1 }, { shape: 'square', color: 'yellow', x: 7, y: 2 },
-        { shape: 'star', color: 'red', x: 3, y: 5 }, { shape: 'hexagon', color: 'green', x: 5, y: 6 },
-        { shape: 'circle', color: 'yellow', x: 2, y: 8 }, { shape: 'triangle', color: 'blue', x: 3, y: 11 },
-        { shape: 'star', color: 'green', x: 5, y: 12 }, { shape: 'triangle', color: 'blue', x: 6, y: 14 },
-        { shape: 'circle', color: 'red', x: 11, y: 2 }, { shape: 'triangle', color: 'green', x: 14, y: 3 },
-        { shape: 'star', color: 'yellow', x: 12, y: 6 }, { shape: 'star', color: 'blue', x: 11, y: 10 },
-        { shape: 'hexagon', color: 'yellow', x: 10, y: 11 }, { shape: 'triangle', color: 'red', x: 14, y: 12 },
-        { shape: 'triangle', color: 'yellow', x: 5, y: 3 }
+        { shape: TARGET_SHAPES.CIRCLE, color: ROBOT_COLORS.BLUE, x: 5, y: 1 }, { shape: TARGET_SHAPES.SQUARE, color: ROBOT_COLORS.YELLOW, x: 7, y: 2 },
+        { shape: TARGET_SHAPES.STAR, color: ROBOT_COLORS.RED, x: 3, y: 5 }, { shape: TARGET_SHAPES.HEXAGON, color: ROBOT_COLORS.GREEN, x: 5, y: 6 },
+        { shape: TARGET_SHAPES.CIRCLE, color: ROBOT_COLORS.YELLOW, x: 2, y: 8 }, { shape: TARGET_SHAPES.TRIANGLE, color: ROBOT_COLORS.BLUE, x: 3, y: 11 },
+        { shape: TARGET_SHAPES.STAR, color: ROBOT_COLORS.GREEN, x: 5, y: 12 }, { shape: TARGET_SHAPES.TRIANGLE, color: ROBOT_COLORS.BLUE, x: 6, y: 14 }, // Changed from BLUE to RED for variety maybe? Let's keep blue.
+        { shape: TARGET_SHAPES.CIRCLE, color: ROBOT_COLORS.RED, x: 11, y: 2 }, { shape: TARGET_SHAPES.TRIANGLE, color: ROBOT_COLORS.GREEN, x: 14, y: 3 },
+        { shape: TARGET_SHAPES.STAR, color: ROBOT_COLORS.YELLOW, x: 12, y: 6 }, { shape: TARGET_SHAPES.STAR, color: ROBOT_COLORS.BLUE, x: 11, y: 10 },
+        { shape: TARGET_SHAPES.HEXAGON, color: ROBOT_COLORS.YELLOW, x: 10, y: 11 }, { shape: TARGET_SHAPES.TRIANGLE, color: ROBOT_COLORS.RED, x: 14, y: 12 },
+        { shape: TARGET_SHAPES.SQUARE, color: ROBOT_COLORS.GREEN, x: 12, y: 13 }, // Added one more green
+        { shape: TARGET_SHAPES.HEXAGON, color: ROBOT_COLORS.RED, x: 2, y: 13}   // Added one more red
     ];
     let currentTarget = null;
     let activeRobot = null;
     let moves = 0;
     let moveHistory = [];
-    let isEditing = true;
+    let isEditing = true; // Start in editing mode
 
+    // --- Helper Functions ---
     function traduireCouleur(couleurAnglais) {
         switch (couleurAnglais) {
-            case 'red': return 'rouge'; case 'green': return 'vert';
-            case 'blue': return 'bleu'; case 'yellow': return 'jaune';
+            case ROBOT_COLORS.RED: return 'rouge'; case ROBOT_COLORS.GREEN: return 'vert';
+            case ROBOT_COLORS.BLUE: return 'bleu'; case ROBOT_COLORS.YELLOW: return 'jaune';
             default: return couleurAnglais;
         }
     }
     function traduireForme(formeAnglais) {
         switch (formeAnglais) {
-            case 'circle': return 'cercle'; case 'triangle': return 'triangle';
-            case 'square': return 'carré'; case 'hexagon': return 'hexagone';
-            case 'star': return 'étoile'; default: return formeAnglais;
+            case TARGET_SHAPES.CIRCLE: return 'cercle'; case TARGET_SHAPES.TRIANGLE: return 'triangle';
+            case TARGET_SHAPES.SQUARE: return 'carré'; case TARGET_SHAPES.HEXAGON: return 'hexagone';
+            case TARGET_SHAPES.STAR: return 'étoile'; default: return formeAnglais;
         }
     }
+    function isOutOfBounds(x, y) {
+        return x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE;
+    }
+
+    // --- Board and Wall Logic ---
 
     function createEmptyBoard() {
         board = [];
         for (let y = 0; y < GRID_SIZE; y++) {
             let row = [];
             for (let x = 0; x < GRID_SIZE; x++) {
-                let walls = { top: false, right: false, bottom: false, left: false };
-                if (x === 0) walls.left = true;
-                if (x === GRID_SIZE - 1) walls.right = true;
-                if (y === 0) walls.top = true;
-                if (y === GRID_SIZE - 1) walls.bottom = true;
-                row.push(walls);
+                // Walls: top, right, bottom, left
+                row.push({ t: false, r: false, b: false, l: false });
             }
             board.push(row);
         }
-        addWall(7, 6, 'bottom'); addWall(8, 6, 'bottom');
-        addWall(6, 7, 'right'); addWall(6, 8, 'right');
-        addWall(8, 7, 'right'); addWall(8, 8, 'right');
-        addWall(7, 8, 'bottom'); addWall(8, 8, 'bottom');
+        // Add outer boundary walls conceptually (handled by isWallImmutable and rendering)
     }
 
-    function addDefaultInternalWalls() {
-        addWall(11, 2, 'bottom'); addWall(11, 2, 'right');
-        addWall(7, 2, 'bottom'); addWall(7, 2, 'right');
-        addWall(5, 1, 'bottom'); addWall(5, 1, 'left');
-        addWall(5, 3, 'top'); addWall(5, 3, 'right');
-        addWall(3, 5, 'bottom'); addWall(3, 5, 'right');
-        addWall(5, 6, 'top'); addWall(5, 6, 'right');
-        addWall(2, 8, 'top'); addWall(2, 8, 'left');
-        addWall(3, 11, 'bottom'); addWall(3, 11, 'right');
-        addWall(5, 12, 'top'); addWall(5, 12, 'left');
-        addWall(6, 14, 'top'); addWall(6, 14, 'right');
-        addWall(14, 3, 'bottom'); addWall(14, 3, 'left');
-        addWall(12, 6, 'top'); addWall(12, 6, 'left');
-        addWall(11, 10, 'bottom'); addWall(11, 10, 'right');
-        addWall(10, 11, 'top'); addWall(10, 11, 'right');
-        addWall(14, 12, 'top'); addWall(14, 12, 'left');
-        addWall(1, 0, 'bottom'); addWall(0, 1, 'right');
-        addWall(14, 0, 'bottom'); addWall(14, 1, 'right');
-        addWall(1, 14, 'bottom'); addWall(0, 14, 'right');
-        addWall(14, 14, 'bottom'); addWall(14, 14, 'right');
+    // Improvement 7: Combined immutable wall check
+    function isWallImmutable(x, y, side) {
+        const GSm1 = GRID_SIZE - 1; // Grid Size Minus 1
+
+        // Check 1: Outer Boundary Walls
+        if ((side === 't' && y === 0) || (side === 'b' && y === GSm1) ||
+            (side === 'l' && x === 0) || (side === 'r' && x === GSm1)) {
+            return true;
+        }
+
+        // Check 2: Center Square Walls (walls BETWEEN cells 7&8)
+        if ( ((side === 'b' || side === 't') && (y === 7 || y === 8) && (x === 7 || x === 8)) || // Horizontal wall within center y-range
+             ((side === 'l' || side === 'r') && (x === 7 || x === 8) && (y === 7 || y === 8)) ) { // Vertical wall within center x-range
+             // More specific check for the actual separating walls
+             if ( (side === 'b' && y === 7 && (x === 7 || x === 8)) || // Wall between y=7 and y=8
+                  (side === 't' && y === 8 && (x === 7 || x === 8)) || // Wall between y=7 and y=8
+                  (side === 'r' && x === 7 && (y === 7 || y === 8)) || // Wall between x=7 and x=8
+                  (side === 'l' && x === 8 && (y === 7 || y === 8)) ) { // Wall between x=7 and x=8
+                 return true;
+             }
+        }
+
+        // Check 3: Essential Edge Walls (corners, preventing direct corner turns)
+        // Top-Left corner area
+        if ( (side === 'b' && y === 0 && x === 1) || (side === 't' && y === 1 && x === 1) ||
+             (side === 'r' && x === 0 && y === 1) || (side === 'l' && x === 1 && y === 1) ) return true;
+        // Top-Right corner area
+        if ( (side === 'b' && y === 0 && x === 14) || (side === 't' && y === 1 && x === 14) ||
+             (side === 'r' && x === 14 && y === 1) || (side === 'l' && x === 15 && y === 1) ) return true; // x=15 is outside but check on cell (14,1)
+        // Bottom-Left corner area
+        if ( (side === 'b' && y === 14 && x === 1) || (side === 't' && y === 15 && x === 1) || // y=15 is outside but check on cell (1,14)
+             (side === 'r' && x === 0 && y === 14) || (side === 'l' && x === 1 && y === 14) ) return true;
+        // Bottom-Right corner area
+        if ( (side === 'b' && y === 14 && x === 14) || (side === 't' && y === 15 && x === 14) || // y=15 check on (14,14)
+             (side === 'r' && x === 14 && y === 14) || (side === 'l' && x === 15 && y === 14) ) return true; // x=15 check on (14,14)
+
+
+        // Check 4: Fixed Perpendicular Edge Walls (Improvement 2)
+        const fixedIndices = [2, 13];
+        // Horizontal segments attached to top/bottom edges
+        if ((side === 'b' && y === 0 && fixedIndices.includes(x)) || (side === 't' && y === 1 && fixedIndices.includes(x)) ||
+            (side === 't' && y === GSm1 && fixedIndices.includes(x)) || (side === 'b' && y === GSm1 - 1 && fixedIndices.includes(x))) {
+            return true;
+        }
+        // Vertical segments attached to left/right edges
+        if ((side === 'r' && x === 0 && fixedIndices.includes(y)) || (side === 'l' && x === 1 && fixedIndices.includes(y)) ||
+            (side === 'l' && x === GSm1 && fixedIndices.includes(y)) || (side === 'r' && x === GSm1 - 1 && fixedIndices.includes(y))) {
+            return true;
+        }
+
+        // If none of the above, the wall is mutable
+        return false;
     }
 
     function addWall(x, y, side) {
-        if (isOutOfBounds(x, y) || isBoundaryWall(x, y, side)) return;
-        if (side === 'top' && y > 0) { board[y][x].top = true; board[y - 1][x].bottom = true; }
-        else if (side === 'bottom' && y < GRID_SIZE - 1) { board[y][x].bottom = true; board[y + 1][x].top = true; }
-        else if (side === 'left' && x > 0) { board[y][x].left = true; board[y][x - 1].right = true; }
-        else if (side === 'right' && x < GRID_SIZE - 1) { board[y][x].right = true; board[y][x + 1].left = true; }
+        if (isOutOfBounds(x, y)) return;
+
+        // Use 't', 'r', 'b', 'l' for brevity
+        if (side === 'top' || side === 't') {
+            board[y][x].t = true;
+            if (y > 0) board[y - 1][x].b = true;
+        } else if (side === 'bottom' || side === 'b') {
+            board[y][x].b = true;
+            if (y < GRID_SIZE - 1) board[y + 1][x].t = true;
+        } else if (side === 'left' || side === 'l') {
+            board[y][x].l = true;
+            if (x > 0) board[y][x - 1].r = true;
+        } else if (side === 'right' || side === 'r') {
+            board[y][x].r = true;
+            if (x < GRID_SIZE - 1) board[y][x + 1].l = true;
+        }
     }
 
     function removeWall(x, y, side) {
-        if (isOutOfBounds(x, y) || isBoundaryWall(x, y, side) || isCenterWall(x, y, side)) return;
-        if (side === 'top' && y > 0) { board[y][x].top = false; board[y - 1][x].bottom = false; }
-        else if (side === 'bottom' && y < GRID_SIZE - 1) { board[y][x].bottom = false; board[y + 1][x].top = false; }
-        else if (side === 'left' && x > 0) { board[y][x].left = false; board[y][x - 1].right = false; }
-        else if (side === 'right' && x < GRID_SIZE - 1) { board[y][x].right = false; board[y][x + 1].left = false; }
+        if (isOutOfBounds(x, y) || isWallImmutable(x, y, side)) return; // Check immutability
+
+        if (side === 'top' || side === 't') {
+            board[y][x].t = false;
+            if (y > 0) board[y - 1][x].b = false;
+        } else if (side === 'bottom' || side === 'b') {
+            board[y][x].b = false;
+            if (y < GRID_SIZE - 1) board[y + 1][x].t = false;
+        } else if (side === 'left' || side === 'l') {
+            board[y][x].l = false;
+            if (x > 0) board[y][x - 1].r = false;
+        } else if (side === 'right' || side === 'r') {
+            board[y][x].r = false;
+            if (x < GRID_SIZE - 1) board[y][x + 1].l = false;
+        }
     }
 
     function toggleWall(x, y, side) {
-        if (isOutOfBounds(x, y) || isBoundaryWall(x, y, side) || isCenterWall(x, y, side) || isEssentialEdgeWall(x, y, side)) return;
-        let wallExists = side === 'top' ? board[y][x].top : side === 'bottom' ? board[y][x].bottom : side === 'left' ? board[y][x].left : board[y][x].right;
-        if (wallExists) removeWall(x, y, side);
-        else addWall(x, y, side);
-        renderBoard();
+        if (isOutOfBounds(x, y) || isWallImmutable(x, y, side)) return; // Check immutability first
+
+        let wallExists = false;
+        if (side === 't') wallExists = board[y][x].t;
+        else if (side === 'b') wallExists = board[y][x].b;
+        else if (side === 'l') wallExists = board[y][x].l;
+        else if (side === 'r') wallExists = board[y][x].r;
+
+        if (wallExists) {
+            removeWall(x, y, side);
+        } else {
+            addWall(x, y, side);
+        }
+        renderBoard(); // Re-render after toggling
     }
 
-    function isOutOfBounds(x, y) { return x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE; }
-    function isBoundaryWall(x, y, side) { return (side === 'top' && y === 0) || (side === 'bottom' && y === GRID_SIZE - 1) || (side === 'left' && x === 0) || (side === 'right' && x === GRID_SIZE - 1); }
-    function isCenterWall(x, y, side) {
-        if (side === 'bottom' && y === 8 && (x === 7 || x === 8)) return true;
-        if (side === 'top' && y === 7 && (x === 7 || x === 8)) return true;
-        if (side === 'right' && x === 6 && (y === 7 || y === 8)) return true;
-        if (side === 'left' && x === 9 && (y === 7 || y === 8)) return true;
-        return false;
-    }
-    function isEssentialEdgeWall(x, y, side) {
-        if ((side === 'bottom' && x === 1 && y === 0) || (side === 'top' && x === 1 && y === 1)) return true;
-        if ((side === 'right' && x === 0 && y === 1) || (side === 'left' && x === 1 && y === 1)) return true;
-        if ((side === 'bottom' && x === 14 && y === 0) || (side === 'top' && x === 14 && y === 1)) return true;
-        if ((side === 'right' && x === 14 && y === 1) || (side === 'left' && x === 15 && y === 1)) return true;
-        if ((side === 'bottom' && x === 1 && y === 14) || (side === 'top' && x === 1 && y === 15)) return true;
-        if ((side === 'right' && x === 0 && y === 14) || (side === 'left' && x === 1 && y === 14)) return true;
-        if ((side === 'bottom' && x === 14 && y === 14) || (side === 'top' && x === 14 && y === 15)) return true;
-        if ((side === 'right' && x === 14 && y === 14) || (side === 'left' && x === 15 && y === 14)) return true;
-        return false;
+    function addDefaultInternalWalls() {
+        // Walls around targets (original logic)
+        addWall(11, 2, 'b'); addWall(11, 2, 'r'); // Red Circle
+        addWall(7, 2, 'b'); addWall(7, 2, 'r'); // Yellow Square
+        addWall(5, 1, 'b'); addWall(5, 1, 'l'); // Blue Circle
+        addWall(5, 3, 't'); addWall(5, 3, 'r'); // Yellow Triangle was here -> now target Green Hexagon (5,6)
+        addWall(3, 5, 'b'); addWall(3, 5, 'r'); // Red Star
+        addWall(5, 6, 't'); addWall(5, 6, 'r'); // Green Hexagon
+        addWall(2, 8, 't'); addWall(2, 8, 'l'); // Yellow Circle
+        addWall(3, 11, 'b'); addWall(3, 11, 'r'); // Blue Triangle
+        addWall(5, 12, 't'); addWall(5, 12, 'l'); // Green Star
+        addWall(6, 14, 't'); addWall(6, 14, 'r'); // Blue Triangle
+        addWall(14, 3, 'b'); addWall(14, 3, 'l'); // Green Triangle
+        addWall(12, 6, 't'); addWall(12, 6, 'l'); // Yellow Star
+        addWall(11, 10, 'b'); addWall(11, 10, 'r'); // Blue Star
+        addWall(10, 11, 't'); addWall(10, 11, 'r'); // Yellow Hexagon
+        addWall(14, 12, 't'); addWall(14, 12, 'l'); // Red Triangle
+
+        // Additional default walls maybe needed? Review Ricochet Robots standard boards.
+        // Example: addWall(1, 5, 'r'); addWall(1, 5, 'b');
     }
 
+    // Improvement 2: Function to add the fixed edge walls
+    function addFixedEdgeWalls() {
+        const fixedIndices = [2, 13];
+        fixedIndices.forEach(idx => {
+            addWall(idx, 0, 'b'); // Bottom wall for cell (idx, 0)
+            addWall(idx, GRID_SIZE - 1, 't'); // Top wall for cell (idx, 15)
+            addWall(0, idx, 'r'); // Right wall for cell (0, idx)
+            addWall(GRID_SIZE - 1, idx, 'l'); // Left wall for cell (15, idx)
+        });
+    }
+
+    // --- Rendering ---
     function renderBoard() {
-        container.innerHTML = '';
-        container.className = isEditing ? 'editing-mode' : '';
+        container.innerHTML = ''; // Clear previous render
+
+        // Update CSS variable for cell size if needed (e.g., for robot emoji size)
+        // Do this once initially and on resize potentially, not every render.
+        // document.documentElement.style.setProperty('--cell-size', container.offsetWidth / GRID_SIZE + 'px');
+
         for (let y = 0; y < GRID_SIZE; y++) {
             for (let x = 0; x < GRID_SIZE; x++) {
-                let cell = document.createElement('div');
+                const cell = document.createElement('div');
                 cell.className = 'cell';
                 cell.dataset.x = x;
                 cell.dataset.y = y;
-                if (board[y]?.[x]?.top) cell.classList.add('wall-top');
-                if (board[y]?.[x]?.right) cell.classList.add('wall-right');
-                if (board[y]?.[x]?.bottom) cell.classList.add('wall-bottom');
-                if (board[y]?.[x]?.left) cell.classList.add('wall-left');
-                if ((x >= 7 && x <= 8) && (y >= 7 && y <= 8)) cell.classList.add('center-square');
-                if (isEditing) cell.addEventListener('click', handleCellClick);
-                container.appendChild(cell);
-            }
-        }
-        if (!isEditing) {
-            targets.forEach(target => {
-                if (!isOutOfBounds(target.x, target.y)) {
-                    let cellIndex = target.y * GRID_SIZE + target.x;
-                    if (container.children[cellIndex]) {
-                        let cell = container.children[cellIndex];
+
+                const walls = board[y][x];
+                let wallDesc = []; // For ARIA label
+
+                // Add wall classes based on board state
+                if (walls.t || (y === 0 && !isWallImmutable(x,y,'t'))) cell.classList.add('wall-top'); // Show outer walls too
+                if (walls.r || (x === GRID_SIZE - 1 && !isWallImmutable(x,y,'r'))) cell.classList.add('wall-right');
+                if (walls.b || (y === GRID_SIZE - 1 && !isWallImmutable(x,y,'b'))) cell.classList.add('wall-bottom');
+                if (walls.l || (x === 0 && !isWallImmutable(x,y,'l'))) cell.classList.add('wall-left');
+
+
+                // Center square visual override
+                if ((x >= 7 && x <= 8) && (y >= 7 && y <= 8)) {
+                    cell.classList.add('center-square');
+                }
+
+                // Click listener for editing mode
+                if (isEditing) {
+                    cell.addEventListener('click', handleCellClick);
+                    // Improvement 5: ARIA role for clickable cells
+                    cell.setAttribute('role', 'button');
+                }
+
+                 // --- Add Targets (only in playing mode) ---
+                let targetDesc = "";
+                if (!isEditing) {
+                    const targetOnCell = targets.find(t => t.x === x && t.y === y);
+                    if (targetOnCell) {
                         let targetDiv = document.createElement('div');
-                        const shapeClass = target.shape ? `target-${target.shape}` : 'target-square';
-                        targetDiv.className = `target ${shapeClass} ${target.color}`;
-                        if (target === currentTarget) targetDiv.classList.add('active');
+                        const shapeClass = `target-${targetOnCell.shape || TARGET_SHAPES.SQUARE}`; // Default to square
+                        targetDiv.className = `target ${shapeClass} ${targetOnCell.color}`;
+                        if (targetOnCell === currentTarget) {
+                            targetDiv.classList.add('active');
+                            targetDesc = ` Cible actuelle: ${traduireForme(targetOnCell.shape)} ${traduireCouleur(targetOnCell.color)}.`;
+                        } else {
+                            targetDesc = ` Cible: ${traduireForme(targetOnCell.shape)} ${traduireCouleur(targetOnCell.color)}.`;
+                        }
                         cell.appendChild(targetDiv);
                     }
                 }
-            });
-            robots.forEach(robot => {
-                if (!isOutOfBounds(robot.x, robot.y)) {
-                    let cellIndex = robot.y * GRID_SIZE + robot.x;
-                    if (container.children[cellIndex]) {
-                        let cell = container.children[cellIndex];
+
+                // --- Add Robots (only in playing mode) ---
+                let robotDesc = "";
+                if (!isEditing) {
+                    const robotOnCell = robots.find(r => r.x === x && r.y === y);
+                    if (robotOnCell) {
                         let robotDiv = document.createElement('div');
-                        robotDiv.className = `robot ${robot.color}`;
-                        if (robot === activeRobot) {
-                            robotDiv.style.outline = '3px solid white';
-                            robotDiv.style.outlineOffset = '-3px';
+                        // Improvement 1: Use emoji and background classes
+                        robotDiv.className = `robot-icon robot-bg-${robotOnCell.color}`;
+                        robotDiv.textContent = '🤖';
+                        robotDesc = ` Robot ${traduireCouleur(robotOnCell.color)}.`;
+
+                        if (robotOnCell === activeRobot) {
+                            robotDiv.classList.add('active-robot-indicator');
+                            robotDesc = ` Robot ${traduireCouleur(robotOnCell.color)} (actif).`;
                         }
                         cell.appendChild(robotDiv);
                     }
                 }
-            });
+
+                 // Improvement 5: ARIA Label Construction
+                if (walls.t || y === 0) wallDesc.push("Mur en haut");
+                if (walls.r || x === GRID_SIZE - 1) wallDesc.push("Mur à droite");
+                if (walls.b || y === GRID_SIZE - 1) wallDesc.push("Mur en bas");
+                if (walls.l || x === 0) wallDesc.push("Mur à gauche");
+
+                let ariaLabel = `Case ${x}, ${y}.`;
+                if (wallDesc.length > 0) ariaLabel += ` ${wallDesc.join(', ')}.`;
+                ariaLabel += robotDesc; // Append robot description if any
+                ariaLabel += targetDesc; // Append target description if any
+                if (isEditing) {
+                     ariaLabel += " Mode édition: Cliquez près des bords pour ajouter/enlever un mur.";
+                }
+                cell.setAttribute('aria-label', ariaLabel);
+
+
+                container.appendChild(cell);
+            }
         }
-        updateRobotSelector();
+        updateRobotSelector(); // Update button highlights
     }
+
+
+    // --- Event Handlers ---
 
     function handleCellClick(event) {
         if (!isEditing) return;
@@ -312,20 +632,63 @@
         const x = parseInt(cell.dataset.x);
         const y = parseInt(cell.dataset.y);
         const rect = cell.getBoundingClientRect();
+
+        // Calculate click position relative to the cell top-left corner
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
-        const cellSize = rect.width;
-        if (clickY < WALL_CLICK_MARGIN) toggleWall(x, y, 'top');
-        else if (clickY > cellSize - WALL_CLICK_MARGIN) toggleWall(x, y, 'bottom');
-        else if (clickX < WALL_CLICK_MARGIN) toggleWall(x, y, 'left');
-        else if (clickX > cellSize - WALL_CLICK_MARGIN) toggleWall(x, y, 'right');
+        const cellSize = rect.width; // Assume square cells
+
+        // Determine which edge is closest to the click
+        const distTop = clickY;
+        const distBottom = cellSize - clickY;
+        const distLeft = clickX;
+        const distRight = cellSize - clickX;
+
+        // Check if click is within the margin of an edge
+        if (distTop < WALL_CLICK_MARGIN && distTop < distBottom && distTop < distLeft && distTop < distRight) {
+            toggleWall(x, y, 't');
+        } else if (distBottom < WALL_CLICK_MARGIN && distBottom < distTop && distBottom < distLeft && distBottom < distRight) {
+            toggleWall(x, y, 'b');
+        } else if (distLeft < WALL_CLICK_MARGIN && distLeft < distTop && distLeft < distBottom && distLeft < distRight) {
+            toggleWall(x, y, 'l');
+        } else if (distRight < WALL_CLICK_MARGIN && distRight < distTop && distRight < distBottom && distRight < distLeft) {
+            toggleWall(x, y, 'r');
+        }
+         // Optional: else { console.log("Clicked center of cell"); }
     }
+
+    function handleKeyPress(e) {
+        if (isEditing || helpModal.style.display === 'block') return; // Ignore keys if editing or help is open
+
+        let key = e.key.toUpperCase();
+
+        // Robot Selection (Improvement 9: Use constants)
+        if (key === KEYS.R) selectRobot(ROBOT_COLORS.RED);
+        else if (key === KEYS.G || key === KEYS.V) selectRobot(ROBOT_COLORS.GREEN); // Allow V for Vert
+        else if (key === KEYS.B) selectRobot(ROBOT_COLORS.BLUE);
+        else if (key === KEYS.Y || key === KEYS.J) selectRobot(ROBOT_COLORS.YELLOW); // Allow J for Jaune
+        // Other Actions
+        else if (key === KEYS.U) undoMove();
+        else if (key === KEYS.ESCAPE) closeHelpModal(); // Allow Esc to close help
+        // Movement (only if a robot is active)
+        else if (activeRobot) {
+            if (e.key === KEYS.ARROW_UP) moveRobot(activeRobot, DIRECTIONS.UP.dx, DIRECTIONS.UP.dy);
+            else if (e.key === KEYS.ARROW_DOWN) moveRobot(activeRobot, DIRECTIONS.DOWN.dx, DIRECTIONS.DOWN.dy);
+            else if (e.key === KEYS.ARROW_LEFT) moveRobot(activeRobot, DIRECTIONS.LEFT.dx, DIRECTIONS.LEFT.dy);
+            else if (e.key === KEYS.ARROW_RIGHT) moveRobot(activeRobot, DIRECTIONS.RIGHT.dx, DIRECTIONS.RIGHT.dy);
+        }
+    }
+
+    // --- Robot Selection and Movement ---
 
     function selectRobot(color) {
         if (isEditing) return;
-        activeRobot = robots.find(r => r.color === color);
-        updateInfo();
-        renderBoard();
+        const newlySelectedRobot = robots.find(r => r.color === color);
+        if (newlySelectedRobot) {
+             activeRobot = newlySelectedRobot;
+             updateInfo();
+             renderBoard(); // Re-render to show selection highlight
+        }
     }
 
     function updateRobotSelector() {
@@ -333,207 +696,283 @@
         buttons.forEach(button => {
             const color = button.dataset.color;
             button.classList.toggle('active', activeRobot && activeRobot.color === color);
+             // ARIA update (optional but good)
+            button.setAttribute('aria-pressed', activeRobot && activeRobot.color === color);
         });
-    }
-
-    function handleKeyPress(e) {
-        if (isEditing) return;
-        let key = e.key.toUpperCase();
-        if (key === 'R') selectRobot('red');
-        else if (key === 'G') selectRobot('green');
-        else if (key === 'B') selectRobot('blue');
-        else if (key === 'Y') selectRobot('yellow');
-        else if (key === 'U') undoMove();
-        else if (key === 'ESCAPE') window.close();
-        else if (activeRobot) {
-            if (e.key === 'ArrowUp') moveRobot(activeRobot, 0, -1);
-            else if (e.key === 'ArrowDown') moveRobot(activeRobot, 0, 1);
-            else if (e.key === 'ArrowLeft') moveRobot(activeRobot, -1, 0);
-            else if (e.key === 'ArrowRight') moveRobot(activeRobot, 1, 0);
-        }
-    }
-
-    function selectTarget() {
-        const reachableTargets = targets.filter(target => {
-            const x = target.x;
-            const y = target.y;
-            if (isOutOfBounds(x, y)) return false;
-            const cell = board[y]?.[x];
-            return cell && (cell.top || cell.bottom || cell.left || cell.right);
-        });
-        if (reachableTargets.length === 0) {
-            info.textContent = "Aucune cible valide/atteignable trouvée avec les murs actuels !";
-            currentTarget = null;
-            return;
-        }
-        currentTarget = reachableTargets[Math.floor(Math.random() * reachableTargets.length)];
-        updateInfo();
-    }
-
-    function updateInfo() {
-        if (isEditing) {
-            info.textContent = "Cliquez près des bords pour ajouter/enlever des murs. Appuyez sur 'Démarrer la Partie'.";
-        } else if (!currentTarget) {
-            info.textContent = "Pas de cible sélectionnée ou disponible.";
-        } else {
-            const cibleCouleur = traduireCouleur(currentTarget.color);
-            const cibleForme = traduireForme(currentTarget.shape);
-            const targetCoords = `(${currentTarget.x}, ${currentTarget.y})`;
-            if (activeRobot) {
-                const robotCouleur = traduireCouleur(activeRobot.color);
-                info.textContent = `Amenez le robot ${cibleCouleur} sur la cible ${cibleCouleur} (${cibleForme} ${cibleCouleur} à ${targetCoords}). Robot actif : ${robotCouleur}. Tous les déplacements comptent.`;
-            } else {
-                info.textContent = `Amenez le robot ${cibleCouleur} sur la cible ${cibleCouleur} (${cibleForme} ${cibleCouleur} à ${targetCoords}). Cliquez sur une couleur pour sélectionner un robot.`;
-            }
-        }
     }
 
     function moveRobot(robot, dx, dy) {
-        if (!robot || isEditing) return;
+        if (!robot || isEditing) return; // Ensure a robot is selected and not editing
+
         let x = robot.x;
         let y = robot.y;
-        let startX = x;
-        let startY = y;
+        const startX = x;
+        const startY = y;
+
         while (true) {
+            let currentWalls = board[y][x];
             let nextX = x + dx;
             let nextY = y + dy;
-            if (isOutOfBounds(x, y) || !board[y] || !board[y][x]) break;
-            if (dx > 0 && board[y][x].right) break;
-            if (dx < 0 && board[y][x].left) break;
-            if (dy > 0 && board[y][x].bottom) break;
-            if (dy < 0 && board[y][x].top) break;
+
+            // 1. Check wall in current cell in the direction of movement
+            if (dx > 0 && currentWalls.r) break; // Moving right, hit right wall
+            if (dx < 0 && currentWalls.l) break; // Moving left, hit left wall
+            if (dy > 0 && currentWalls.b) break; // Moving down, hit bottom wall
+            if (dy < 0 && currentWalls.t) break; // Moving up, hit top wall
+
+            // 2. Check for out of bounds
             if (isOutOfBounds(nextX, nextY)) break;
+
+            // 3. Check wall in the next cell in the opposite direction
+            let nextWalls = board[nextY][nextX];
+            if (dx > 0 && nextWalls.l) break; // Moving right, hit left wall of next cell
+            if (dx < 0 && nextWalls.r) break; // Moving left, hit right wall of next cell
+            if (dy > 0 && nextWalls.t) break; // Moving down, hit top wall of next cell
+            if (dy < 0 && nextWalls.b) break; // Moving up, hit bottom wall of next cell
+
+            // 4. Check for collision with other robots in the next cell
             let collision = robots.some(r => r !== robot && r.x === nextX && r.y === nextY);
             if (collision) break;
+
+            // If no obstacle, update position and continue loop
             x = nextX;
             y = nextY;
         }
+
+        // If the robot moved
         if (x !== startX || y !== startY) {
             let move = { robot, fromX: startX, fromY: startY, toX: x, toY: y };
+            moveHistory.push(move); // Record move before updating position
+
             robot.x = x;
             robot.y = y;
+
             moves++;
             movesDisplay.textContent = `Coups : ${moves}`;
-            moveHistory.push(move);
+            updateInfo(); // Update info potentially based on position
             renderBoard();
             checkWin();
         }
     }
 
+     // Wrapper for mobile controls to use the active robot
+    function moveActiveRobot(dx, dy) {
+        if (activeRobot) {
+            moveRobot(activeRobot, dx, dy);
+        } else {
+            // Maybe briefly show a message to select a robot?
+             info.textContent = "Sélectionnez un robot d'abord !";
+             setTimeout(updateInfo, 1500); // Restore info after 1.5s
+        }
+    }
+
     function undoMove() {
         if (isEditing || moveHistory.length === 0) return;
+
         let lastMove = moveHistory.pop();
         lastMove.robot.x = lastMove.fromX;
         lastMove.robot.y = lastMove.fromY;
+
         moves--;
         movesDisplay.textContent = `Coups : ${moves}`;
+        activeRobot = lastMove.robot; // Ensure the undone robot is active again
         updateInfo();
         renderBoard();
+         // No need to checkWin after undo
     }
 
-    function checkWin() {
-        if (isEditing || !currentTarget) return;
-        const winner = robots.find(r => r.x === currentTarget.x && r.y === currentTarget.y);
-        if (winner) {
-            const couleurGagnant = traduireCouleur(winner.color);
+    // --- Game Flow Logic ---
+
+    function selectTarget() {
+        // Improvement 10: Filter out targets already achieved by the correct robot
+        const potentialTargets = targets.filter(target => {
+            if (isOutOfBounds(target.x, target.y)) return false; // Target must be on board
+
+            // Check if the target spot is occupied by the *correct* color robot
+            const occupiedByCorrectRobot = robots.some(robot =>
+                robot.x === target.x && robot.y === target.y && robot.color === target.color
+            );
+
+            // A target is selectable if it's on board and not already solved
+            return !occupiedByCorrectRobot;
+        });
+
+
+        if (potentialTargets.length === 0) {
+             // This case should ideally not happen if there are enough targets/robots
+             // Or it means all targets are solved (unlikely in one turn)
+             info.textContent = "Plus de cibles valides disponibles ou toutes résolues !";
+             currentTarget = null;
+             // Optionally disable further moves? Or allow reset?
+        } else {
+            // Select a random target from the valid, unsolved ones
+            currentTarget = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
+        }
+        updateInfo(); // Update display with new target info
+    }
+
+     function checkWin() {
+        if (isEditing || !currentTarget) return; // No win check if editing or no target
+
+        const robotOnTarget = robots.find(r => r.x === currentTarget.x && r.y === currentTarget.y);
+
+        if (robotOnTarget) {
+            const couleurGagnant = traduireCouleur(robotOnTarget.color);
             const couleurCible = traduireCouleur(currentTarget.color);
             const formeCible = traduireForme(currentTarget.shape);
-            if (winner.color === currentTarget.color) {
-                info.textContent = `Correct ! Le robot ${couleurGagnant} a atteint la cible ${formeCible} ${couleurCible} en ${moves} coups ! Appuyez sur 'Nouveau Tour'.`;
-                document.removeEventListener('keydown', handleKeyPress);
-                restartButton.focus();
+
+            if (robotOnTarget.color === currentTarget.color) {
+                // Correct robot on target!
+                info.innerHTML = `🏆 Bravo ! Robot ${couleurGagnant} sur cible ${formeCible} ${couleurCible} en ${moves} coups ! <br>Appuyez sur 'Nouveau Tour'.`;
+                document.removeEventListener('keydown', handleKeyPress); // Stop listening for moves
+                restartButton.focus(); // Focus the button to press next
+                // Maybe add a visual cue like making the board slightly transparent?
             } else {
-                info.textContent = `Un robot ${couleurGagnant} est sur la cible ${couleurCible}. Seule la couleur ${couleurCible} peut atteindre cette cible !`;
+                // Wrong robot on target
+                info.textContent = `Robot ${couleurGagnant} sur la cible ${couleurCible}, mais seul le robot ${couleurCible} peut la valider !`;
+            }
+        } else {
+             // Target is not occupied, continue playing (update info for active robot if needed)
+             updateInfo(); // Ensure info reflects current state if no win/wrong robot
+        }
+    }
+
+    function updateInfo() {
+        if (isEditing) {
+            info.textContent = "Mode Édition : Cliquez près des bords pour ajouter/enlever murs. 'Démarrer' pour jouer.";
+        } else if (!currentTarget) {
+            info.textContent = "Pas de cible active. (Problème de sélection?)";
+        } else {
+            const cibleCouleur = traduireCouleur(currentTarget.color);
+            const cibleForme = traduireForme(currentTarget.shape);
+            const targetCoords = `(${currentTarget.x}, ${currentTarget.y})`;
+
+            if (activeRobot) {
+                const robotCouleur = traduireCouleur(activeRobot.color);
+                 info.textContent = `Cible: ${cibleForme} ${cibleCouleur} ${targetCoords}. Robot actif: ${robotCouleur}. Amenez le robot ${cibleCouleur} sur la cible.`;
+            } else {
+                 info.textContent = `Cible: ${cibleForme} ${cibleCouleur} ${targetCoords}. Sélectionnez un robot (couleur ou R,V,B,J).`;
             }
         }
     }
 
     function startGame() {
         isEditing = false;
+        document.body.classList.remove('editing-mode'); // Improvement 8
+        document.body.classList.add('playing-mode');   // Improvement 8
+
         startGameButton.style.display = 'none';
         resetWallsButton.style.display = 'none';
-        helpButton.style.display = 'inline-block'; // Bouton Aide reste visible
+        helpButton.style.display = 'inline-block'; // Keep help visible
         restartButton.style.display = 'inline-block';
         robotSelector.style.display = 'flex';
-        robots = [
-            { color: 'blue', x: 10, y: 4 },
-            { color: 'red', x: 4, y: 15 },
-            { color: 'green', x: 14, y: 14 },
-            { color: 'yellow', x: 4, y: 14 }
-        ];
+        mobileControls.style.display = window.innerWidth <= 600 ? 'flex' : 'none'; // Show mobile controls based on width
+
+        // Reset game state for a new game (not just a new round)
         moves = 0;
         movesDisplay.textContent = `Coups : ${moves}`;
         moveHistory = [];
         activeRobot = null;
         currentTarget = null;
-        selectTarget();
-        renderBoard();
-        document.addEventListener('keydown', handleKeyPress);
+
+        // Initialize robot positions (use constants) - Consider randomizing later
+        // Make sure no two robots start at the same spot
+        robots = [
+            { color: ROBOT_COLORS.BLUE, x: 1, y: 4 },   // Adjusted start pos
+            { color: ROBOT_COLORS.RED, x: 14, y: 1 },  // Adjusted start pos
+            { color: ROBOT_COLORS.GREEN, x: 13, y: 13 },// Adjusted start pos
+            { color: ROBOT_COLORS.YELLOW, x: 4, y: 14 } // Adjusted start pos
+            // Ensure these positions are valid (not inside walls initially)
+        ];
+
+        selectTarget(); // Select the first target
+        renderBoard(); // Render the game state
+        document.addEventListener('keydown', handleKeyPress); // Start listening for keys
+        updateInfo(); // Set initial game info message
     }
 
     function resetWallsToDefault() {
-        if (!isEditing) return;
-        createEmptyBoard();
-        addDefaultInternalWalls();
-        renderBoard();
-        updateInfo();
+        if (!isEditing) return; // Only allow in editing mode
+        createEmptyBoard();      // Create blank slate
+        addDefaultInternalWalls(); // Add the predefined internal walls
+        addFixedEdgeWalls();     // Improvement 2: Add fixed edge walls
+        renderBoard();           // Show the result
+        updateInfo();            // Update info message
     }
 
-    function restartGame() {
-        if (isEditing) return;
+    function restartGame() { // This is really "New Round"
+        if (isEditing) return; // Cannot restart if editing
+
         moves = 0;
         movesDisplay.textContent = `Coups : ${moves}`;
         moveHistory = [];
-        activeRobot = null;
-        currentTarget = null;
+        activeRobot = null; // Deselect active robot
+
+        // Reset robot positions to initial state for the *current* board setup
+        // (Could eventually allow keeping current positions for faster subsequent rounds)
         robots = [
-            { color: 'blue', x: 10, y: 4 },
-            { color: 'red', x: 4, y: 15 },
-            { color: 'green', x: 14, y: 14 },
-            { color: 'yellow', x: 4, y: 14 }
+             { color: ROBOT_COLORS.BLUE, x: 1, y: 4 },
+             { color: ROBOT_COLORS.RED, x: 14, y: 1 },
+             { color: ROBOT_COLORS.GREEN, x: 13, y: 13 },
+             { color: ROBOT_COLORS.YELLOW, x: 4, y: 14 }
         ];
-        selectTarget();
-        renderBoard();
-        document.removeEventListener('keydown', handleKeyPress);
-        document.addEventListener('keydown', handleKeyPress);
+
+        currentTarget = null; // Clear current target
+        selectTarget(); // Select a new random target
+        renderBoard(); // Render the new round state
+
+        document.removeEventListener('keydown', handleKeyPress); // Remove old listener just in case
+        document.addEventListener('keydown', handleKeyPress);    // Add listener back for the new round
+        updateInfo();
     }
 
+    // --- Help Modal Functions (Improvement 4) ---
     function showHelp() {
-        alert(
-            "Aide Ricochet Robots :\n\n" +
-            "MODE ÉDITION :\n" +
-            "- Cliquez près des bords d’une case pour ajouter ou enlever un mur.\n" +
-            "- Les murs extérieurs, centraux et les 8 murs près des bords ne sont pas modifiables.\n" +
-            "- Utilisez 'Réinitialiser Murs' pour revenir à la configuration de départ.\n" +
-            "- Cliquez sur 'Démarrer la Partie' quand le plateau vous convient.\n\n" +
-            "MODE JEU :\n" +
-            "- But : Amener le robot de la couleur correspondante sur la cible (même couleur et forme) en un minimum de coups.\n" +
-            "- Règle importante : Seule la couleur indiquée (par exemple, robot jaune pour une cible jaune) peut atteindre la cible pour gagner.\n" +
-            "- Murs mobiles : Vous pouvez déplacer les autres robots pour créer des obstacles temporaires, mais ils ne peuvent pas atteindre la cible à la place du robot de la bonne couleur.\n" +
-            "- Sélection Robot : Cliquez sur une couleur (ou R, V, B, J sur clavier).\n" +
-            "- Déplacement : Flèches ou boutons (↑↓←→). Le robot glisse jusqu’à un obstacle. Tous les déplacements comptent.\n" +
-            "- Cible : Entourée d’une bordure noire.\n" +
-            "- Commandes : U (Annuler), Nouveau Tour, Échap (Quitter).\n\n" +
-            "Conseil : Positionnez les robots stratégiquement pour bloquer ou guider !"
-        );
+        helpModal.style.display = 'block';
+    }
+    function closeHelpModal() {
+        helpModal.style.display = 'none';
     }
 
+    // Close modal if clicked outside of it
+    window.onclick = function(event) {
+        if (event.target == helpModal) {
+            closeHelpModal();
+        }
+    }
+
+    // --- Initialization ---
     function initializeApp() {
         isEditing = true;
+        document.body.classList.add('editing-mode'); // Improvement 8
+        document.body.classList.remove('playing-mode');
+
+        // Set initial cell size CSS variable
+        document.documentElement.style.setProperty('--cell-size', container.offsetWidth / GRID_SIZE + 'px');
+        // Consider adding a resize listener to update this
+
         createEmptyBoard();
         addDefaultInternalWalls();
-        renderBoard();
+        addFixedEdgeWalls(); // Improvement 2
+        renderBoard(); // Initial render (in edit mode)
+
         startGameButton.style.display = 'inline-block';
         resetWallsButton.style.display = 'inline-block';
         helpButton.style.display = 'inline-block';
         restartButton.style.display = 'none';
         robotSelector.style.display = 'none';
-        updateInfo();
-        document.removeEventListener('keydown', handleKeyPress);
+        mobileControls.style.display = 'none'; // Hide mobile controls initially
+
+        updateInfo(); // Set initial edit mode info
+
+        // Event Listeners
+        document.removeEventListener('keydown', handleKeyPress); // Ensure no game listener active initially
         helpButton.addEventListener('click', showHelp);
     }
 
+    // --- Start the application ---
     initializeApp();
+
 </script>
 </body>
 </html>
