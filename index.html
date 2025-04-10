@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Robo-Casse-Tête</title>
+    <!-- Ajout de la librairie canvas-confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <style>
         /* CSS Variables */
         :root {
@@ -42,7 +44,7 @@
             --font-family: Arial, sans-serif;
             --base-font-size: 1rem;
 
-            /* Dynamically updated by JS if possible, otherwise a good guess */
+            /* Dynamically updated by JS */
             --cell-size: calc(min(90vw, 640px) / var(--grid-size));
         }
 
@@ -70,6 +72,9 @@
             max-width: 700px;
             width: 90%;
             margin-bottom: 20px;
+             /* Modification 1: Allow welcome screen to take more height */
+             max-height: 85vh; /* Limit max height but allow more than before */
+             overflow-y: auto; /* Add scroll ONLY if content still exceeds max height */
         }
         #welcome-screen h1 {
             margin-top: 0;
@@ -83,9 +88,10 @@
         #welcome-rules {
             text-align: left;
             margin-bottom: 20px;
-            max-height: 40vh; /* Limit height on small screens */
-            overflow-y: auto; /* Add scroll if content overflows */
-            padding-right: 10px; /* Space for scrollbar */
+            /* Modification 1: Remove fixed height limit here, let parent control */
+            /* max-height: 40vh; */
+            /* overflow-y: auto; */
+            padding-right: 5px; /* Minimal space in case scrollbar appears */
         }
         #welcome-rules h2 {
             font-size: 1.1rem;
@@ -93,10 +99,13 @@
             margin-bottom: 5px;
             color: var(--button-restart-bg);
         }
-        #welcome-rules p {
+        #welcome-rules p, #welcome-rules ul {
             font-size: 0.9rem;
             line-height: 1.4;
             margin-bottom: 10px;
+        }
+        #welcome-rules ul {
+            padding-left: 20px; /* Indent list */
         }
         #start-from-welcome {
             padding: 12px 25px;
@@ -107,6 +116,7 @@
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.2s;
+            margin-top: auto; /* Push button towards bottom if extra space */
         }
         #start-from-welcome:hover {
             background-color: var(--button-start-hover-bg);
@@ -239,8 +249,45 @@
         #restart-button { background-color: var(--button-restart-bg); }
         #restart-button:hover { background-color: var(--button-restart-hover-bg); }
 
-        /* Robot Selector Styling (Now hidden during play) */
-        #robot-selector { display: none; } /* Hide the selector buttons */
+        /* Modification 2: Robot Selector Styling (Now VISIBLE during play) */
+        #robot-selector {
+            display: none; /* Hidden initially and in edit mode */
+            gap: 10px;
+            margin-top: 10px; /* Space above the selector */
+            margin-bottom: 10px;
+            justify-content: center;
+        }
+        .robot-button {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            border: 2px solid #333;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex; /* For centering emoji */
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem; /* Emoji size */
+            color: rgba(0,0,0,0.7); /* Emoji color */
+            background-clip: padding-box;
+            user-select: none;
+        }
+        /* Use BG colors for buttons */
+        .robot-button.red { background-color: var(--robot-red-bg); }
+        .robot-button.green { background-color: var(--robot-green-bg); }
+        .robot-button.blue { background-color: var(--robot-blue-bg); }
+        .robot-button.yellow { background-color: var(--robot-yellow-bg); }
+
+        .robot-button.active {
+            animation: pulse 1s infinite; /* Use original pulse */
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.9); /* White glow */
+            border-color: white;
+        }
+        @keyframes pulse { /* Keep original pulse for buttons */
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
 
         /* Mobile Controls */
         #mobile-controls { display: none; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 10px; }
@@ -254,10 +301,16 @@
         }
         body.editing-mode .cell { cursor: pointer; }
         body.editing-mode .cell:hover { background-color: #d0d0f0 !important; opacity: 0.8; }
+        /* Ensure robot selector is hidden in edit mode */
+        body.editing-mode #robot-selector { display: none; }
+
         body.playing-mode #game-container {
             border-color: var(--board-border); /* Normal border */
             box-shadow: none;
         }
+         /* Ensure robot selector is visible in play mode */
+        body.playing-mode #robot-selector { display: flex; }
+
 
         /* Help Modal Styles */
         .modal {
@@ -298,8 +351,8 @@
             body.playing-mode #mobile-controls { display: flex; } /* Show only in playing mode */
             #info, #moves { font-size: 0.9rem; }
             .modal-content { margin: 5% auto; width: 90%; }
-            #welcome-screen { padding: 15px; }
-            #welcome-rules { max-height: 50vh; }
+            #welcome-screen { padding: 15px; max-height: 90vh; } /* Adjust welcome height on mobile */
+            .robot-button { width: 35px; height: 35px; font-size: 1.3rem; } /* Smaller selector buttons */
         }
 
     </style>
@@ -315,13 +368,13 @@
             <p><strong>Le But :</strong> Amener le robot 🤖 de la couleur indiquée sur la cible ayant la même couleur et la même forme, en utilisant le moins de coups possible.</p>
             <p><strong>Déplacement :</strong>
                 <ul>
-                    <li>Cliquez sur un robot 🤖 directement sur le plateau pour le sélectionner (ou utilisez les touches R, V/G, B, J/Y). Le robot actif est mis en surbrillance.</li>
+                    <li>Cliquez sur un robot 🤖 (soit sur le plateau, soit sur les boutons colorés sous le plateau) pour le sélectionner (ou utilisez les touches R, V/G, B, J/Y). Le robot actif est mis en surbrillance.</li>
                     <li>Utilisez les flèches du clavier (↑↓←→) ou les boutons sur mobile pour déplacer le robot sélectionné.</li>
                     <li>Un robot glisse en ligne droite jusqu'à rencontrer un obstacle (un mur ou un autre robot). Chaque glissade compte comme un coup.</li>
                 </ul>
             </p>
             <p><strong>Robots et Murs :</strong> Les autres robots 🤖 ne peuvent pas être traversés et agissent comme des murs mobiles. Utilisez-les stratégiquement pour bloquer votre robot actif au bon endroit !</p>
-            <p><strong>Mode Édition :</strong> Avant de commencer, vous pouvez modifier le plateau ! Cliquez près des bords internes d'une case pour ajouter ou enlever un mur. Certains murs (extérieurs, centraux, près des coins) sont fixes. Utilisez "Réinitialiser Murs" pour revenir à la configuration par défaut.</p>
+            <p><strong>Mode Édition (au démarrage) :</strong> Avant de commencer, vous pouvez modifier le plateau ! Cliquez près des bords internes d'une case pour ajouter ou enlever un mur. Certains murs (extérieurs, centraux, près des coins) sont fixes. Utilisez "Réinitialiser Murs" pour revenir à la configuration par défaut.</p>
             <p><strong>Commandes :</strong> 'U' pour annuler le dernier coup. 'Nouveau Tour' pour obtenir une nouvelle cible après une victoire ou si vous êtes bloqué. 'Règles et Astuces' (pendant le jeu) pour revoir les détails.</p>
              <p>Amusez-vous bien !</p>
         </div>
@@ -337,13 +390,15 @@
         <div id="info" aria-live="polite">Chargement...</div>
         <div id="moves" aria-live="polite">Coups : 0</div>
 
-        <!-- Robot Selector Buttons (Hidden during gameplay, kept for potential future use/reference) -->
-        <div id="robot-selector" style="display: none;">
-            <div class="robot-button red" data-color="red" aria-label="Sélectionner Robot Rouge"></div>
-            <div class="robot-button green" data-color="green" aria-label="Sélectionner Robot Vert"></div>
-            <div class="robot-button blue" data-color="blue" aria-label="Sélectionner Robot Bleu"></div>
-            <div class="robot-button yellow" data-color="yellow" aria-label="Sélectionner Robot Jaune"></div>
+        <!-- Modification 2: Robot Selector Buttons (Now used during gameplay) -->
+        <div id="robot-selector">
+             <!-- Note: onclick calls selectRobot directly -->
+             <div class="robot-button red" data-color="red" onclick="selectRobot('red')" aria-label="Sélectionner Robot Rouge">🤖</div>
+             <div class="robot-button green" data-color="green" onclick="selectRobot('green')" aria-label="Sélectionner Robot Vert">🤖</div>
+             <div class="robot-button blue" data-color="blue" onclick="selectRobot('blue')" aria-label="Sélectionner Robot Bleu">🤖</div>
+             <div class="robot-button yellow" data-color="yellow" onclick="selectRobot('yellow')" aria-label="Sélectionner Robot Jaune">🤖</div>
         </div>
+
 
         <div id="controls">
             <button id="start-game-button" onclick="startGame()" aria-label="Démarrer la partie">Démarrer la Partie</button>
@@ -379,7 +434,7 @@
                - But : Amener le robot 🤖 de la couleur correspondante sur la cible (même couleur et forme) en un minimum de coups.<br>
                - Règle importante : Seul le robot de la couleur indiquée peut valider la cible.<br>
                - Murs mobiles : Les autres robots 🤖 servent d'obstacles temporaires.<br>
-               - Sélection Robot : Cliquez directement sur un robot 🤖 sur le plateau (ou touches R, V/G, B, J/Y sur clavier). Le robot actif est entouré d'une aura blanche.<br>
+               - Sélection Robot : Cliquez directement sur un robot 🤖 sur le plateau OU sur les boutons colorés 🤖 sous le plateau (ou touches R, V/G, B, J/Y sur clavier). Le robot actif est entouré d'une aura blanche sur le plateau et le bouton correspondant s'anime.<br>
                - Déplacement : Flèches du clavier ou boutons (↑↓←→). Le robot glisse jusqu’au prochain obstacle (mur ou autre robot). Chaque déplacement compte.<br>
                - Cible : Entourée d’une bordure noire.<br>
                - Commandes : U (Annuler dernier coup), Nouveau Tour (après victoire ou pour changer de cible).</p>
@@ -390,12 +445,12 @@
 <script>
     // --- Constants ---
     const GRID_SIZE = 16;
-    const WALL_CLICK_MARGIN = 10; // Must match CSS :root variable conceptually
+    const WALL_CLICK_MARGIN = 10;
     const ROBOT_COLORS = { RED: 'red', GREEN: 'green', BLUE: 'blue', YELLOW: 'yellow' };
     const TARGET_SHAPES = { CIRCLE: 'circle', SQUARE: 'square', TRIANGLE: 'triangle', HEXAGON: 'hexagon', STAR: 'star' };
     const DIRECTIONS = { UP: { dx: 0, dy: -1 }, DOWN: { dx: 0, dy: 1 }, LEFT: { dx: -1, dy: 0 }, RIGHT: { dx: 1, dy: 0 } };
     const KEYS = {
-        R: 'R', G: 'G', B: 'B', Y: 'Y', V: 'V', J: 'J', // Accept French keys too
+        R: 'R', G: 'G', B: 'B', Y: 'Y', V: 'V', J: 'J',
         U: 'U', ARROW_UP: 'ArrowUp', ARROW_DOWN: 'ArrowDown', ARROW_LEFT: 'ArrowLeft', ARROW_RIGHT: 'ArrowRight',
         ESCAPE: 'Escape'
     };
@@ -410,7 +465,7 @@
     const resetWallsButton = document.getElementById('reset-walls-button');
     const restartButton = document.getElementById('restart-button');
     const helpButton = document.getElementById('help-button');
-    // const robotSelector = document.getElementById('robot-selector'); // No longer needed for primary selection
+    const robotSelector = document.getElementById('robot-selector'); // Modification 2: Get the selector div
     const mobileControls = document.getElementById('mobile-controls');
     const helpModal = document.getElementById('help-modal');
     const startFromWelcomeButton = document.getElementById('start-from-welcome');
@@ -472,32 +527,20 @@
         for (let y = 0; y < GRID_SIZE; y++) {
             let row = [];
             for (let x = 0; x < GRID_SIZE; x++) {
-                // Walls: top, right, bottom, left
                 row.push({ t: false, r: false, b: false, l: false });
             }
             board.push(row);
         }
     }
 
-    // Combined immutable wall check
     function isWallImmutable(x, y, side) {
-        const GSm1 = GRID_SIZE - 1; // Grid Size Minus 1
-
-        // Outer Boundary Walls (CSS handles visual border, this prevents internal logic)
+        const GSm1 = GRID_SIZE - 1;
         if ((side === 't' && y === 0) || (side === 'b' && y === GSm1) ||
-            (side === 'l' && x === 0) || (side === 'r' && x === GSm1)) {
-            return true;
-        }
-
-        // Center Square Walls
-         if ( (side === 'b' && y === 7 && (x === 7 || x === 8)) ||
-              (side === 't' && y === 8 && (x === 7 || x === 8)) ||
-              (side === 'r' && x === 7 && (y === 7 || y === 8)) ||
-              (side === 'l' && x === 8 && (y === 7 || y === 8)) ) {
-             return true;
-         }
-
-        // Essential Edge Walls (corners)
+            (side === 'l' && x === 0) || (side === 'r' && x === GSm1)) { return true; }
+        if ( (side === 'b' && y === 7 && (x === 7 || x === 8)) ||
+             (side === 't' && y === 8 && (x === 7 || x === 8)) ||
+             (side === 'r' && x === 7 && (y === 7 || y === 8)) ||
+             (side === 'l' && x === 8 && (y === 7 || y === 8)) ) { return true; }
         if ( (side === 'b' && y === 0 && x === 1) || (side === 't' && y === 1 && x === 1) ||
              (side === 'r' && x === 0 && y === 1) || (side === 'l' && x === 1 && y === 1) ) return true;
         if ( (side === 'b' && y === 0 && x === 14) || (side === 't' && y === 1 && x === 14) ||
@@ -506,24 +549,22 @@
              (side === 'r' && x === 0 && y === 14) || (side === 'l' && x === 1 && y === 14) ) return true;
         if ( (side === 'b' && y === 14 && x === 14) || (side === 't' && y === 15 && x === 14) ||
              (side === 'r' && x === 14 && y === 14) || (side === 'l' && x === 15 && y === 14) ) return true;
-
-        // Fixed Perpendicular Edge Walls
         const fixedIndices = [2, 13];
         if ((side === 'b' && y === 0 && fixedIndices.includes(x)) || (side === 't' && y === 1 && fixedIndices.includes(x)) ||
             (side === 't' && y === GSm1 && fixedIndices.includes(x)) || (side === 'b' && y === GSm1 - 1 && fixedIndices.includes(x))) return true;
         if ((side === 'r' && x === 0 && fixedIndices.includes(y)) || (side === 'l' && x === 1 && fixedIndices.includes(y)) ||
             (side === 'l' && x === GSm1 && fixedIndices.includes(y)) || (side === 'r' && x === GSm1 - 1 && fixedIndices.includes(y))) return true;
-
         return false;
     }
 
     function addWall(x, y, side) {
         if (isOutOfBounds(x, y)) return;
-        if (side === 't') { board[y][x].t = true; if (y > 0 && !isWallImmutable(x, y - 1, 'b')) board[y - 1][x].b = true; }
-        else if (side === 'b') { board[y][x].b = true; if (y < GRID_SIZE - 1 && !isWallImmutable(x, y + 1, 't')) board[y + 1][x].t = true; }
-        else if (side === 'l') { board[y][x].l = true; if (x > 0 && !isWallImmutable(x - 1, y, 'r')) board[y][x - 1].r = true; }
-        else if (side === 'r') { board[y][x].r = true; if (x < GRID_SIZE - 1 && !isWallImmutable(x + 1, y, 'l')) board[y][x + 1].l = true; }
+        if (side === 't' && !isWallImmutable(x, y, 't')) { board[y][x].t = true; if (y > 0 && !isWallImmutable(x, y - 1, 'b')) board[y - 1][x].b = true; }
+        else if (side === 'b' && !isWallImmutable(x, y, 'b')) { board[y][x].b = true; if (y < GRID_SIZE - 1 && !isWallImmutable(x, y + 1, 't')) board[y + 1][x].t = true; }
+        else if (side === 'l' && !isWallImmutable(x, y, 'l')) { board[y][x].l = true; if (x > 0 && !isWallImmutable(x - 1, y, 'r')) board[y][x - 1].r = true; }
+        else if (side === 'r' && !isWallImmutable(x, y, 'r')) { board[y][x].r = true; if (x < GRID_SIZE - 1 && !isWallImmutable(x + 1, y, 'l')) board[y][x + 1].l = true; }
     }
+
 
     function removeWall(x, y, side) {
         if (isOutOfBounds(x, y) || isWallImmutable(x, y, side)) return;
@@ -545,7 +586,6 @@
     }
 
     function addDefaultInternalWalls() {
-        // Walls around targets
         addWall(11, 2, 'b'); addWall(11, 2, 'r'); addWall(7, 2, 'b'); addWall(7, 2, 'r');
         addWall(5, 1, 'b'); addWall(5, 1, 'l'); addWall(3, 5, 'b'); addWall(3, 5, 'r');
         addWall(5, 6, 't'); addWall(5, 6, 'r'); addWall(2, 8, 't'); addWall(2, 8, 'l');
@@ -562,7 +602,6 @@
             addWall(idx, 0, 'b'); addWall(idx, GRID_SIZE - 1, 't');
             addWall(0, idx, 'r'); addWall(GRID_SIZE - 1, idx, 'l');
         });
-         // Ensure corners also connect properly if needed by default setup
         addWall(1, 0, 'b'); addWall(14, 0, 'b');
         addWall(1, GRID_SIZE-1, 't'); addWall(14, GRID_SIZE-1, 't');
         addWall(0, 1, 'r'); addWall(0, 14, 'r');
@@ -571,10 +610,8 @@
 
     // --- Rendering ---
     function renderBoard() {
-        container.innerHTML = ''; // Clear previous render
-        // Recalculate cell size in case of resize
+        container.innerHTML = '';
         document.documentElement.style.setProperty('--cell-size', container.offsetWidth / GRID_SIZE + 'px');
-
 
         for (let y = 0; y < GRID_SIZE; y++) {
             for (let x = 0; x < GRID_SIZE; x++) {
@@ -584,26 +621,22 @@
                 cell.dataset.y = y;
 
                 const walls = board[y][x];
-                let wallDesc = []; // For ARIA label
+                let wallDesc = [];
 
-                // Add wall classes if they exist in the board data
                 if (walls.t) cell.classList.add('wall-top');
                 if (walls.r) cell.classList.add('wall-right');
                 if (walls.b) cell.classList.add('wall-bottom');
                 if (walls.l) cell.classList.add('wall-left');
 
-                // Center square visual override
                 if ((x >= 7 && x <= 8) && (y >= 7 && y <= 8)) {
                     cell.classList.add('center-square');
                 }
 
-                // Click listener for editing mode
                 if (isEditing) {
                     cell.addEventListener('click', handleCellClick);
-                    cell.setAttribute('role', 'button'); // Cell itself is clickable in edit mode
+                    cell.setAttribute('role', 'button');
                 }
 
-                // Add Targets (playing mode)
                 let targetDesc = "";
                 if (!isEditing) {
                     const targetOnCell = targets.find(t => t.x === x && t.y === y);
@@ -621,7 +654,6 @@
                     }
                 }
 
-                // Add Robots (playing mode)
                 let robotDesc = "";
                 if (!isEditing) {
                     const robotOnCell = robots.find(r => r.x === x && r.y === y);
@@ -630,16 +662,14 @@
                         robotDiv.className = `robot-icon robot-bg-${robotOnCell.color}`;
                         robotDiv.textContent = '🤖';
                         robotDesc = ` Robot ${traduireCouleur(robotOnCell.color)}.`;
-                        // *** CHANGE 1: Add onclick to robot icon ***
-                        robotDiv.onclick = () => selectRobot(robotOnCell.color);
-                        robotDiv.setAttribute('role', 'button'); // Robot is clickable
+                        robotDiv.onclick = () => selectRobot(robotOnCell.color); // Click on icon selects
+                        robotDiv.setAttribute('role', 'button');
                         robotDiv.setAttribute('aria-label', `Sélectionner Robot ${traduireCouleur(robotOnCell.color)}`);
-
 
                         if (robotOnCell === activeRobot) {
                             robotDiv.classList.add('active-robot-indicator');
                             robotDesc = ` Robot ${traduireCouleur(robotOnCell.color)} (actif).`;
-                            robotDiv.setAttribute('aria-pressed', 'true'); // Indicate it's selected
+                            robotDiv.setAttribute('aria-pressed', 'true');
                         } else {
                              robotDiv.setAttribute('aria-pressed', 'false');
                         }
@@ -647,35 +677,34 @@
                     }
                 }
 
-                 // ARIA Label Construction for the cell
                 let ariaLabel = `Case ${x}, ${y}.`;
-                // Build wall description based ONLY on internal walls defined in board data
                  if (walls.t) wallDesc.push("Mur en haut");
                  if (walls.r) wallDesc.push("Mur à droite");
                  if (walls.b) wallDesc.push("Mur en bas");
                  if (walls.l) wallDesc.push("Mur à gauche");
-                 // Add outer walls conceptually for edge cells
                  if (y === 0) wallDesc.push("Bordure haute");
                  if (x === GRID_SIZE - 1) wallDesc.push("Bordure droite");
                  if (y === GRID_SIZE - 1) wallDesc.push("Bordure basse");
                  if (x === 0) wallDesc.push("Bordure gauche");
 
-                if (wallDesc.length > 0) ariaLabel += ` ${[...new Set(wallDesc)].join(', ')}.`; // Use Set to avoid duplicate border mentions
-                ariaLabel += robotDesc; // Add robot description if present
-                ariaLabel += targetDesc; // Add target description if present
+                if (wallDesc.length > 0) ariaLabel += ` ${[...new Set(wallDesc)].join(', ')}.`;
+                ariaLabel += robotDesc;
+                ariaLabel += targetDesc;
 
                 if (isEditing) {
                      ariaLabel += " Mode édition: Cliquez près des bords pour ajouter/enlever un mur.";
-                } else if (!robotDesc) { // Only add move hint if no robot is on the cell
-                     ariaLabel += " Cliquez sur un robot pour le sélectionner ou utilisez les flèches pour déplacer le robot actif.";
+                } else if (!robotDesc) {
+                     ariaLabel += " Cliquez sur un robot (plateau ou boutons) pour sélectionner ou utilisez les flèches.";
                 }
                 cell.setAttribute('aria-label', ariaLabel);
-
 
                 container.appendChild(cell);
             }
         }
-        // updateRobotSelector(); // No longer needed
+        // Modification 2: Update selector buttons state
+        if (!isEditing) {
+             updateRobotSelector();
+        }
     }
 
 
@@ -684,17 +713,15 @@
     function handleCellClick(event) {
         if (!isEditing) return;
         const cell = event.currentTarget;
-        // Prevent wall toggling if clicking directly on a robot icon placeholder (if any were visible in edit mode)
-        if (event.target.classList.contains('robot-icon')) return;
+        if (event.target.classList.contains('robot-icon')) return; // Ignore clicks on potential robot icons in edit
 
         const x = parseInt(cell.dataset.x);
         const y = parseInt(cell.dataset.y);
         const rect = cell.getBoundingClientRect();
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
-        const cellSize = rect.width; // Use width, assuming square cells
+        const cellSize = rect.width;
 
-        // Determine clicked side based on proximity
         const distTop = clickY;
         const distBottom = cellSize - clickY;
         const distLeft = clickX;
@@ -713,24 +740,18 @@
         if (isEditing || helpModal.style.display === 'block') return;
         let key = e.key.toUpperCase();
 
-        if (key === KEYS.ESCAPE) {
-             closeHelpModal();
-             return;
-        }
-
-        // Robot selection keys
+        if (key === KEYS.ESCAPE) { closeHelpModal(); return; }
         if (key === KEYS.R) { selectRobot(ROBOT_COLORS.RED); return; }
         if (key === KEYS.G || key === KEYS.V) { selectRobot(ROBOT_COLORS.GREEN); return; }
         if (key === KEYS.B) { selectRobot(ROBOT_COLORS.BLUE); return; }
         if (key === KEYS.Y || key === KEYS.J) { selectRobot(ROBOT_COLORS.YELLOW); return; }
         if (key === KEYS.U) { undoMove(); return; }
 
-        // Movement keys (only if a robot is active)
         if (activeRobot) {
-            if (e.key === KEYS.ARROW_UP) { moveRobot(activeRobot, DIRECTIONS.UP.dx, DIRECTIONS.UP.dy); e.preventDefault(); return; } // Prevent page scroll
-            if (e.key === KEYS.ARROW_DOWN) { moveRobot(activeRobot, DIRECTIONS.DOWN.dx, DIRECTIONS.DOWN.dy); e.preventDefault(); return; } // Prevent page scroll
-            if (e.key === KEYS.ARROW_LEFT) { moveRobot(activeRobot, DIRECTIONS.LEFT.dx, DIRECTIONS.LEFT.dy); e.preventDefault(); return; } // Prevent page scroll
-            if (e.key === KEYS.ARROW_RIGHT) { moveRobot(activeRobot, DIRECTIONS.RIGHT.dx, DIRECTIONS.RIGHT.dy); e.preventDefault(); return; } // Prevent page scroll
+            if (e.key === KEYS.ARROW_UP) { moveRobot(activeRobot, DIRECTIONS.UP.dx, DIRECTIONS.UP.dy); e.preventDefault(); return; }
+            if (e.key === KEYS.ARROW_DOWN) { moveRobot(activeRobot, DIRECTIONS.DOWN.dx, DIRECTIONS.DOWN.dy); e.preventDefault(); return; }
+            if (e.key === KEYS.ARROW_LEFT) { moveRobot(activeRobot, DIRECTIONS.LEFT.dx, DIRECTIONS.LEFT.dy); e.preventDefault(); return; }
+            if (e.key === KEYS.ARROW_RIGHT) { moveRobot(activeRobot, DIRECTIONS.RIGHT.dx, DIRECTIONS.RIGHT.dy); e.preventDefault(); return; }
         }
     }
 
@@ -742,13 +763,21 @@
         if (newlySelectedRobot) {
              activeRobot = newlySelectedRobot;
              updateInfo();
-             renderBoard(); // Re-render to show the active indicator
+             renderBoard(); // Re-render to update indicators (icon + buttons)
         }
     }
 
-    // function updateRobotSelector() { // No longer needed as buttons aren't used for selection
-    //     // ... (kept commented if needed later)
-    // }
+     // Modification 2: Function to update the state of selector buttons
+    function updateRobotSelector() {
+        const buttons = robotSelector.querySelectorAll('.robot-button');
+        buttons.forEach(button => {
+            const color = button.dataset.color;
+            const isActive = activeRobot && activeRobot.color === color;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-pressed', isActive);
+        });
+    }
+
 
     function moveRobot(robot, dx, dy) {
         if (!robot || isEditing) return;
@@ -759,39 +788,25 @@
             let currentWalls = board[y][x];
             let nextX = x + dx; let nextY = y + dy;
 
-            // Check wall in current cell in direction of movement
-            if (dx > 0 && currentWalls.r) break;
-            if (dx < 0 && currentWalls.l) break;
-            if (dy > 0 && currentWalls.b) break;
-            if (dy < 0 && currentWalls.t) break;
-
-            // Check board boundaries
-            if (isOutOfBounds(nextX, nextY)) break; // Hit outer boundary conceptual wall
-
-            // Check wall in next cell in opposite direction of movement
+            if (dx > 0 && currentWalls.r) break; if (dx < 0 && currentWalls.l) break;
+            if (dy > 0 && currentWalls.b) break; if (dy < 0 && currentWalls.t) break;
+            if (isOutOfBounds(nextX, nextY)) break;
             let nextWalls = board[nextY][nextX];
-            if (dx > 0 && nextWalls.l) break;
-            if (dx < 0 && nextWalls.r) break;
-            if (dy > 0 && nextWalls.t) break;
-            if (dy < 0 && nextWalls.b) break;
-
-            // Check for robot collision in next cell
+            if (dx > 0 && nextWalls.l) break; if (dx < 0 && nextWalls.r) break;
+            if (dy > 0 && nextWalls.t) break; if (dy < 0 && nextWalls.b) break;
             let collision = robots.some(r => r !== robot && r.x === nextX && r.y === nextY);
             if (collision) break;
-
-            // Move one step
             x = nextX; y = nextY;
         }
 
-        // If the robot actually moved
         if (x !== startX || y !== startY) {
             let move = { robot, fromX: startX, fromY: startY, toX: x, toY: y };
             moveHistory.push(move);
             robot.x = x; robot.y = y;
             moves++; movesDisplay.textContent = `Coups : ${moves}`;
-            updateInfo(); // Update info first
-            renderBoard(); // Then render with new positions
-            checkWin(); // Check win state after rendering
+            updateInfo();
+            renderBoard(); // Update board and selector buttons
+            checkWin();
         }
     }
 
@@ -799,18 +814,12 @@
         if (activeRobot) {
             moveRobot(activeRobot, dx, dy);
         } else {
-             // Find the target robot color if no robot is selected yet
              const targetColor = currentTarget ? currentTarget.color : null;
-             const targetColorFrench = targetColor ? traduireCouleur(targetColor) : null;
-             if (targetColorFrench) {
-                 info.textContent = `Sélectionnez d'abord le robot ${targetColorFrench} en cliquant dessus !`;
-             } else {
-                 info.textContent = "Sélectionnez un robot d'abord en cliquant dessus !";
-             }
-             setTimeout(updateInfo, 2000); // Reset info message after a delay
+             const targetColorFrench = targetColor ? traduireCouleur(targetColor) : "un";
+             info.textContent = `Sélectionnez d'abord le robot ${targetColorFrench} ! (clic ou touche)`;
+             setTimeout(updateInfo, 2000);
         }
     }
-
 
     function undoMove() {
         if (isEditing || moveHistory.length === 0) return;
@@ -818,7 +827,7 @@
         lastMove.robot.x = lastMove.fromX; lastMove.robot.y = lastMove.fromY;
         moves--; movesDisplay.textContent = `Coups : ${moves}`;
         activeRobot = lastMove.robot; // Reselect the robot that moved
-        updateInfo(); renderBoard();
+        updateInfo(); renderBoard(); // Update board and selector buttons
     }
 
     // --- Game Flow Logic ---
@@ -826,24 +835,12 @@
     function selectTarget() {
         const potentialTargets = targets.filter(target => {
             if (isOutOfBounds(target.x, target.y)) return false;
-            // Target is potential if it's not occupied by ANY robot initially
             const occupied = robots.some(robot => robot.x === target.x && robot.y === target.y);
             return !occupied;
-            // Original logic prevented selecting if the CORRECT robot was already there,
-            // but a new round should allow any non-occupied target.
-            // const occupiedByCorrectRobot = robots.some(robot =>
-            //     robot.x === target.x && robot.y === target.y && robot.color === target.color);
-            // return !occupiedByCorrectRobot;
         });
         if (potentialTargets.length === 0) {
-             // Handle case where all targets might be initially occupied (unlikely with default setup)
-             // or if all targets were somehow completed without restarting.
-             // For now, just pick any target.
              console.warn("Aucune cible potentielle non occupée trouvée. Sélection aléatoire parmi toutes.");
              currentTarget = targets[Math.floor(Math.random() * targets.length)];
-             // A better approach might be to force a restart or show a specific message.
-             // info.textContent = "Problème : impossible de sélectionner une cible valide. Essayez 'Nouveau Tour'.";
-             // currentTarget = null;
         } else {
             currentTarget = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
         }
@@ -856,21 +853,32 @@
         if (robotOnTarget) {
             const couleurGagnant = traduireCouleur(robotOnTarget.color);
             const couleurCible = traduireCouleur(currentTarget.color);
-            const formeCible = traduireForme(currentTarget.shape, true); // Capitalize
+            const formeCible = traduireForme(currentTarget.shape, true);
             if (robotOnTarget.color === currentTarget.color) {
+                // Modification 3: Trigger Confetti!
+                confetti({
+                    particleCount: 250, // Plus fourni
+                    spread: 100,        // Bonne dispersion
+                    origin: { y: 0 },   // Départ d'en haut
+                    gravity: 0.7        // Légèrement plus lent
+                });
+                // Launch a second smaller burst slightly later for effect
+                 setTimeout(() => confetti({
+                     particleCount: 100,
+                     spread: 120,
+                     origin: { y: 0.2 },
+                     angle: Math.random()*60 + 60 // Random angle between 60 and 120
+                 }), 200);
+
+
                 info.innerHTML = `🏆 Bravo ! Robot ${couleurGagnant} sur cible ${formeCible} ${couleurCible} en ${moves} coups ! <br>Appuyez sur 'Nouveau Tour'.`;
-                document.removeEventListener('keydown', handleKeyPress); // Stop listening for moves
-                restartButton.focus(); // Focus the button to continue
+                document.removeEventListener('keydown', handleKeyPress);
+                restartButton.focus();
             } else {
-                // Keep the standard info, as the wrong robot is on target
-                updateInfo();
-                 // Optional: Add a temporary message?
-                // let tempInfo = info.textContent;
-                // info.textContent = `Robot ${couleurGagnant} sur la cible, mais ce n'est pas le bon !`;
-                // setTimeout(() => { info.textContent = tempInfo; }, 1500);
+                updateInfo(); // Keep standard info if wrong robot
             }
         } else {
-             updateInfo(); // Keep info updated if no win and target not occupied
+             updateInfo(); // Keep info updated if no win
         }
     }
 
@@ -881,51 +889,48 @@
             info.textContent = "Pas de cible active. Cliquez sur 'Nouveau Tour'.";
         } else {
             const cibleCouleur = traduireCouleur(currentTarget.color);
-            const cibleForme = traduireForme(currentTarget.shape, true); // Capitalize
+            const cibleForme = traduireForme(currentTarget.shape, true);
             let infoText = `Cible: ${cibleForme} ${cibleCouleur}. `;
 
             if (activeRobot) {
                 const robotCouleur = traduireCouleur(activeRobot.color);
                  infoText += ` Robot actif: ${robotCouleur}. Utilisez les flèches pour déplacer.`;
             } else {
-                 // Prompt to select the TARGET robot
-                 infoText += ` Cliquez sur le robot ${cibleCouleur} pour le sélectionner.`;
+                 infoText += ` Cliquez sur le robot ${cibleCouleur} (plateau ou bouton) pour le sélectionner.`;
             }
             info.textContent = infoText;
         }
     }
 
     function initializeGameSetup() {
-         // This function contains the logic previously in initializeApp
          isEditing = true;
          document.body.classList.add('editing-mode');
          document.body.classList.remove('playing-mode');
 
-         // Ensure container is visible before calculating offsetWidth
-         mainGame.style.display = 'flex'; // Temporarily set display if needed for width calc
+         mainGame.style.display = 'flex';
          document.documentElement.style.setProperty('--cell-size', container.offsetWidth / GRID_SIZE + 'px');
-         mainGame.style.display = 'flex'; // Keep it flex
+         mainGame.style.display = 'flex';
 
          createEmptyBoard();
          addDefaultInternalWalls();
          addFixedEdgeWalls();
-         renderBoard(); // Render the initial empty board for editing
+         renderBoard(); // Renders board, calls updateRobotSelector IF !isEditing (which it isn't yet fully)
 
          startGameButton.style.display = 'inline-block';
          resetWallsButton.style.display = 'inline-block';
-         helpButton.style.display = 'inline-block'; // Keep help always available
+         helpButton.style.display = 'inline-block';
          restartButton.style.display = 'none';
-         mobileControls.style.display = 'none'; // Hide mobile controls in edit mode
-         updateInfo(); // Set initial "Mode Édition" message
-         document.removeEventListener('keydown', handleKeyPress); // No key handling in edit mode yet
-         helpButton.addEventListener('click', showHelp); // Ensure help button works
+         robotSelector.style.display = 'none'; // Modification 2: Ensure hidden in edit mode
+         mobileControls.style.display = 'none';
+         updateInfo();
+         document.removeEventListener('keydown', handleKeyPress);
+         helpButton.addEventListener('click', showHelp);
 
-         // Add resize listener for dynamic cell size and mobile controls visibility
          window.addEventListener('resize', () => {
              document.documentElement.style.setProperty('--cell-size', container.offsetWidth / GRID_SIZE + 'px');
-             // Re-render only if needed for visual consistency on resize, might be performance heavy
+             // Re-render needed if cell size affects layout significantly
              // if (container.offsetWidth > 0) renderBoard();
-             if (!isEditing) { // Only adjust mobile controls visibility when playing
+             if (!isEditing) {
                  mobileControls.style.display = window.innerWidth <= 600 ? 'flex' : 'none';
              }
          });
@@ -938,10 +943,9 @@
         document.body.classList.add('playing-mode');
         startGameButton.style.display = 'none';
         resetWallsButton.style.display = 'none';
-        // helpButton remains visible
         restartButton.style.display = 'inline-block';
-        // robotSelector.style.display = 'flex'; // No longer needed
-        mobileControls.style.display = window.innerWidth <= 600 ? 'flex' : 'none'; // Show mobile controls if applicable
+        robotSelector.style.display = 'flex'; // Modification 2: Show selector in play mode
+        mobileControls.style.display = window.innerWidth <= 600 ? 'flex' : 'none';
 
         moves = 0;
         movesDisplay.textContent = `Coups : ${moves}`;
@@ -949,15 +953,14 @@
         activeRobot = null;
         currentTarget = null;
 
-        // Initialize robot positions (ensure they are not on potential targets if possible)
         robots = [
             { color: ROBOT_COLORS.BLUE, x: 1, y: 4 }, { color: ROBOT_COLORS.RED, x: 14, y: 1 },
             { color: ROBOT_COLORS.GREEN, x: 13, y: 13 }, { color: ROBOT_COLORS.YELLOW, x: 4, y: 14 }
         ];
 
-        selectTarget(); // Selects the first target and updates info
-        renderBoard(); // Render the board with robots and target
-        document.addEventListener('keydown', handleKeyPress); // Start listening for game keys
+        selectTarget();
+        renderBoard(); // Renders board AND updates selector buttons via updateRobotSelector() call inside
+        document.addEventListener('keydown', handleKeyPress);
     }
 
     function resetWallsToDefault() {
@@ -969,49 +972,42 @@
         updateInfo();
     }
 
-    function restartGame() { // Starts a New Round (already in playing mode)
-        if (isEditing) return; // Should not be callable in editing mode
+    function restartGame() { // Starts a New Round
+        if (isEditing) return;
 
         moves = 0;
         movesDisplay.textContent = `Coups : ${moves}`;
         moveHistory = [];
-        activeRobot = null; // Deselect robot
-        currentTarget = null; // Clear current target
+        activeRobot = null;
+        currentTarget = null;
 
-        // Reset robot positions
         robots = [
              { color: ROBOT_COLORS.BLUE, x: 1, y: 4 }, { color: ROBOT_COLORS.RED, x: 14, y: 1 },
              { color: ROBOT_COLORS.GREEN, x: 13, y: 13 }, { color: ROBOT_COLORS.YELLOW, x: 4, y: 14 }
         ];
 
-        selectTarget(); // Selects a new target and updates info
-        renderBoard(); // Render the board with reset state
+        selectTarget();
+        renderBoard(); // Renders board AND updates selector buttons
 
-        document.removeEventListener('keydown', handleKeyPress); // Remove previous listener
-        document.addEventListener('keydown', handleKeyPress); // Add listener back for the new round
+        document.removeEventListener('keydown', handleKeyPress);
+        document.addEventListener('keydown', handleKeyPress);
     }
 
     // --- Help Modal Functions ---
     function showHelp() { helpModal.style.display = 'block'; }
     function closeHelpModal() { helpModal.style.display = 'none'; }
-    // Close modal if clicked outside of it
     window.onclick = function(event) {
-        if (event.target == helpModal) {
-            closeHelpModal();
-        }
+        if (event.target == helpModal) { closeHelpModal(); }
     }
 
     // --- Initialization ---
     function initializeApp() {
-        // Show welcome screen, hide game
         welcomeScreen.style.display = 'flex';
         mainGame.style.display = 'none';
-
-        // Add listener to the welcome screen button
         startFromWelcomeButton.addEventListener('click', () => {
-            welcomeScreen.style.display = 'none'; // Hide welcome
-            mainGame.style.display = 'flex';     // Show game container
-            initializeGameSetup(); // Set up the board for editing mode
+            welcomeScreen.style.display = 'none';
+            mainGame.style.display = 'flex';
+            initializeGameSetup();
         });
     }
 
